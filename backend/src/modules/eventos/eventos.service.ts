@@ -6,11 +6,12 @@
  * - `verificarGestionaEvento(solicitante, ministerioId, ...)` → regla "-propio" del COORDINADOR.
  */
 import { type Permiso, type RolUsuario, tienePermiso } from '../../config/permisos';
-import type { Prisma } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { AppError, type DetalleError } from '../../lib/appError';
 import { crearMeta, ordenar, paginar } from '../../lib/paginacion';
 import { prisma } from '../../lib/prisma';
 import { esCoordinadorDe } from '../../middlewares/auth';
+import { condicionSinAcentos } from '../miembros/miembros.service';
 import { esFechaSola, finDiaEnZona, inicioDiaEnZona, zonaIglesia } from './eventos.fechas';
 import {
   type CrearEvento,
@@ -156,6 +157,14 @@ async function aInstantes(desde?: string, hasta?: string) {
   };
 }
 
+/** Ids de eventos cuyo título coincide con `q` sin acentos ni mayúsculas ("reunion" → "Reunión"). */
+async function idsPorTitulo(q: string) {
+  const condicion = condicionSinAcentos(Prisma.sql`titulo`, q);
+  if (!condicion) return [];
+  const filas = await prisma.$queryRaw<{ id: string }[]>`SELECT id FROM eventos WHERE ${condicion}`;
+  return filas.map((f) => f.id);
+}
+
 export async function listar(query: QueryEventos) {
   await marcarRealizados();
   const rango = await aInstantes(query.desde, query.hasta);
@@ -165,7 +174,7 @@ export async function listar(query: QueryEventos) {
     ...(query.categoria && { categoria: query.categoria }),
     ...(query.estado && { estado: query.estado }),
     ...(query.ministerioId && { ministerioId: query.ministerioId }),
-    ...(query.q && { titulo: { contains: query.q, mode: 'insensitive' } }),
+    ...(query.q && { id: { in: await idsPorTitulo(query.q) } }),
   };
 
   // Calendario: con desde y hasta se devuelve todo el rango sin paginar (máx. 500)
@@ -305,7 +314,12 @@ export async function editar(id: string, datos: EditarEvento, solicitante: Solic
       { campo: 'fechaFin', mensaje },
     ]);
   }
-  await prisma.evento.update({ where: { id }, data: datos });
+  // Si un evento REALIZADO se reprograma a una fecha futura, vuelve a PROGRAMADO (y a próximos/cartelera)
+  const reprogramado = actual.estado === 'REALIZADO' && (fin ?? inicio) > new Date();
+  await prisma.evento.update({
+    where: { id },
+    data: { ...datos, ...(reprogramado && { estado: 'PROGRAMADO' }) },
+  });
   return obtener(id);
 }
 

@@ -77,6 +77,57 @@ describe('pase de lista (F3-07)', () => {
     );
   });
 
+  it('una recarga de la lista (red, foco) no borra lo marcado sin guardar', async () => {
+    const { usuario, queryClient } = await renderApp('/eventos/ev-culto-hoy/asistencia', {
+      como: 'u-secretario',
+    });
+    await screen.findByRole('heading', { name: /Pase de lista: Culto de oración/ });
+    await usuario.click(screen.getByRole('button', { name: 'Presente: José Chan May' }));
+    // Otro dispositivo guardó a María mientras tanto; luego la lista se recarga
+    db.asistencias.push({
+      id: 'as-otro',
+      eventoId: 'ev-culto-hoy',
+      miembroId: 'm-maria',
+      presente: true,
+      registradoPorId: 'u-admin',
+      registradoEn: new Date().toISOString(),
+    });
+    await queryClient.refetchQueries({ queryKey: ['asistencia', 'evento', 'ev-culto-hoy'] });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Presente: María Pech Canul' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      ),
+    );
+    expect(screen.getByRole('button', { name: 'Presente: José Chan May' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByText('Tienes cambios sin guardar')).toBeInTheDocument();
+  });
+
+  it('una marca ya guardada se puede cambiar pero no quitar', async () => {
+    const { usuario } = await renderApp('/eventos/ev-culto-pasado/asistencia', {
+      como: 'u-admin',
+    });
+    const presente = await screen.findByRole('button', { name: 'Presente: José Chan May' });
+    expect(presente).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByText(/se pueden cambiar entre presente y ausente, pero no quitar/),
+    ).toBeInTheDocument();
+    await usuario.click(presente);
+    expect(presente).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Todo guardado')).toBeInTheDocument();
+    await usuario.click(screen.getByRole('button', { name: 'Ausente: José Chan May' }));
+    expect(presente).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText('Tienes cambios sin guardar')).toBeInTheDocument();
+    // Una marca nueva (sin guardar) sí se puede quitar
+    const sofia = screen.getByRole('button', { name: 'Presente: Sofía Núñez Poot' });
+    await usuario.click(sofia);
+    await usuario.click(sofia);
+    expect(sofia).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('busca y filtra: sin marcar / presentes', async () => {
     const { usuario } = await renderApp('/eventos/ev-culto-pasado/asistencia', {
       como: 'u-admin',
@@ -160,6 +211,7 @@ describe('resumen de asistencia (F3-09)', () => {
     ).toBeInTheDocument();
     await usuario.click(screen.getByRole('button', { name: 'Mensual' }));
     expect(screen.getByRole('button', { name: 'Mensual' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('link', { name: /Exportar/ })).toBeInTheDocument();
+    // "Exportar" no aparece hasta que exista /reportes (F4)
+    expect(screen.queryByRole('link', { name: /Exportar/ })).not.toBeInTheDocument();
   });
 });

@@ -35,20 +35,9 @@ export function AnunciosPage() {
   const [porEliminar, setPorEliminar] = useState<Anuncio | null>(null);
   const eliminar = useEliminarAnuncio();
 
-  // Vigentes paginados; programados y expirados salen de vigentes=false y se separan por fecha
-  const vigentes = useAnuncios({ vigentes: true, page: filtros.page });
-  const noVigentes = useAnuncios({ vigentes: false, limit: 100 });
-  const consulta = pestana === 'vigentes' ? vigentes : noVigentes;
-  // Momento de la consulta: separa programados (publicación futura) de expirados
-  const ahora = noVigentes.dataUpdatedAt;
-  const lista =
-    pestana === 'vigentes'
-      ? (vigentes.data?.data ?? [])
-      : (noVigentes.data?.data ?? []).filter((a) =>
-          pestana === 'programados'
-            ? Date.parse(a.fechaPublicacion) > ahora
-            : Date.parse(a.fechaPublicacion) <= ahora,
-        );
+  // Cada pestaña pide su estado al servidor, paginado
+  const consulta = useAnuncios({ estado: pestana, page: filtros.page });
+  const lista = consulta.data?.data ?? [];
 
   return (
     <>
@@ -134,9 +123,9 @@ export function AnunciosPage() {
                   </li>
                 ))}
               </ul>
-              {pestana === 'vigentes' && vigentes.data && (
+              {consulta.data && (
                 <Paginacion
-                  meta={vigentes.data.meta}
+                  meta={consulta.data.meta}
                   alCambiarPagina={(page) => setFiltros({ page })}
                 />
               )}

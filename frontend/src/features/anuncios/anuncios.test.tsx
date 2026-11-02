@@ -23,6 +23,23 @@ describe('listado de anuncios (F3-10)', () => {
     expect(await screen.findByText('Colecta de víveres')).toBeInTheDocument();
   });
 
+  it('cada pestaña pagina en el servidor (más de 20 programados)', async () => {
+    const base = db.anuncios.find((a) => a.id === 'an-programado')!;
+    for (let i = 0; i < 25; i++) {
+      db.anuncios.push({ ...base, id: `an-prog-${i}`, titulo: `Programado ${i}` });
+    }
+    const { usuario } = await renderApp('/anuncios?tab=programados', { como: 'u-secretario' });
+    const lista = await screen.findByRole(
+      'list',
+      { name: 'Anuncios programados' },
+      { timeout: 3000 },
+    );
+    expect(within(lista).getAllByRole('listitem')).toHaveLength(20);
+    expect(screen.getByText('1–20 de 26')).toBeInTheDocument();
+    await usuario.click(screen.getByRole('button', { name: /Siguiente/ }));
+    expect(await screen.findByText('21–26 de 26')).toBeInTheDocument();
+  });
+
   it('estado vacío', async () => {
     db.anuncios = [];
     await renderApp('/anuncios', { como: 'u-secretario' });

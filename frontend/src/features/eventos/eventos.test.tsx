@@ -133,6 +133,34 @@ describe('detalle del evento (F3-03, F3-04, F3-05)', () => {
     expect(await within(dialogo).findByText('Rosa Castillo Ek está inactivo.')).toBeInTheDocument();
   });
 
+  it('responsables: "Cancelar" descarta los cambios', async () => {
+    const { usuario } = await renderApp('/eventos/ev-ensayo', { como: 'u-pastor' });
+    await screen.findByRole('heading', { name: 'Ensayo de alabanza' });
+    await usuario.click(screen.getByRole('button', { name: /^Editar$/ }));
+    let dialogo = await screen.findByRole('dialog');
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Quitar' }));
+    expect(within(dialogo).getByText('0 de 10 seleccionados')).toBeInTheDocument();
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await usuario.click(screen.getByRole('button', { name: /^Editar$/ }));
+    dialogo = await screen.findByRole('dialog');
+    expect(within(dialogo).getByText('1 de 10 seleccionados')).toBeInTheDocument();
+    expect(db.responsables.filter((r) => r.eventoId === 'ev-ensayo')).toHaveLength(1);
+  });
+
+  it('cancelar con un motivo corto explica qué falta', async () => {
+    const { usuario } = await renderApp('/eventos/ev-ensayo', { como: 'u-pastor' });
+    await screen.findByRole('heading', { name: 'Ensayo de alabanza' });
+    await usuario.click(screen.getByRole('button', { name: /Cancelar evento/ }));
+    const dialogo = await screen.findByRole('dialog');
+    await usuario.type(within(dialogo).getByLabelText(/Motivo/), 'no');
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Cancelar evento' }));
+    expect(
+      await within(dialogo).findByText('El motivo debe tener al menos 5 caracteres.'),
+    ).toBeInTheDocument();
+    expect(db.eventos.find((e) => e.id === 'ev-ensayo')?.estado).toBe('PROGRAMADO');
+  });
+
   it('cancelar pide motivo y el calendario se actualiza sin recargar', async () => {
     const { usuario } = await renderApp('/eventos/ev-ensayo', { como: 'u-pastor' });
     await screen.findByRole('heading', { name: 'Ensayo de alabanza' });

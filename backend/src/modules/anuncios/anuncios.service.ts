@@ -3,10 +3,11 @@
  * - `vigentes({ soloImportantes, limit })` → anuncios publicados y no expirados, IMPORTANTE primero
  *   (dashboard B4, cartelera B3-15).
  */
-import type { Prisma } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/appError';
 import { crearMeta, paginar } from '../../lib/paginacion';
 import { prisma } from '../../lib/prisma';
+import { condicionSinAcentos } from '../miembros/miembros.service';
 import type { CrearAnuncio, EditarAnuncio, QueryAnuncios } from './anuncios.schemas';
 
 const NO_EXISTE = 'El anuncio no existe.';
@@ -42,6 +43,25 @@ function whereNoVigente(ahora: Date): Prisma.AnuncioWhereInput {
   return { OR: [{ fechaPublicacion: { gt: ahora } }, { fechaExpiracion: { lte: ahora } }] };
 }
 
+const WHERE_ESTADO = {
+  vigentes: whereVigente,
+  programados: (ahora: Date): Prisma.AnuncioWhereInput => ({ fechaPublicacion: { gt: ahora } }),
+  expirados: (ahora: Date): Prisma.AnuncioWhereInput => ({
+    fechaPublicacion: { lte: ahora },
+    fechaExpiracion: { lte: ahora },
+  }),
+} satisfies Record<NonNullable<QueryAnuncios['estado']>, (ahora: Date) => Prisma.AnuncioWhereInput>;
+
+/** Ids de anuncios cuyo título coincide con `q` sin acentos ni mayúsculas. */
+async function idsPorTitulo(q: string) {
+  const condicion = condicionSinAcentos(Prisma.sql`titulo`, q);
+  if (!condicion) return [];
+  const filas = await prisma.$queryRaw<
+    { id: string }[]
+  >`SELECT id FROM anuncios WHERE ${condicion}`;
+  return filas.map((f) => f.id);
+}
+
 /** El evento vinculado debe existir y no estar cancelado → si no, 422. */
 async function verificarEvento(eventoId: string | null | undefined) {
   if (!eventoId) return;
@@ -67,8 +87,9 @@ export async function listar(query: QueryAnuncios) {
   const filtros: Prisma.AnuncioWhereInput[] = [];
   if (query.vigentes === true) filtros.push(whereVigente(ahora));
   if (query.vigentes === false) filtros.push(whereNoVigente(ahora));
+  if (query.estado) filtros.push(WHERE_ESTADO[query.estado](ahora));
   if (query.prioridad) filtros.push({ prioridad: query.prioridad });
-  if (query.q) filtros.push({ titulo: { contains: query.q, mode: 'insensitive' } });
+  if (query.q) filtros.push({ id: { in: await idsPorTitulo(query.q) } });
   const where: Prisma.AnuncioWhereInput = { AND: filtros };
   const [filas, total] = await prisma.$transaction([
     prisma.anuncio.findMany({ where, orderBy: ORDEN, skip, take, select: SELECT_ANUNCIO }),

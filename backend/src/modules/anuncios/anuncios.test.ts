@@ -153,6 +153,32 @@ describe('GET/PATCH/DELETE /anuncios (B3-13)', () => {
     expect((await api().get('/anuncios')).body.meta.total).toBe(4);
   });
 
+  it('estado=vigentes|programados|expirados separa y pagina cada pestaña', async () => {
+    await crearAnuncio({ titulo: 'Vigente' });
+    await crearAnuncio({ titulo: 'Programado 1', fechaPublicacion: enDias(2) });
+    await crearAnuncio({ titulo: 'Programado 2', fechaPublicacion: enDias(3) });
+    await crearAnuncio({
+      titulo: 'Expirado',
+      fechaPublicacion: enDias(-9),
+      fechaExpiracion: enDias(-1),
+    });
+    const titulos = async (url: string) =>
+      (await api().get(url)).body.data.map((a: { titulo: string }) => a.titulo).sort();
+    expect(await titulos('/anuncios?estado=vigentes')).toEqual(['Vigente']);
+    expect(await titulos('/anuncios?estado=programados')).toEqual(['Programado 1', 'Programado 2']);
+    expect(await titulos('/anuncios?estado=expirados')).toEqual(['Expirado']);
+    const pagina = await api().get('/anuncios?estado=programados&limit=1&page=2');
+    expect(pagina.body.meta).toMatchObject({ total: 2, page: 2, totalPages: 2 });
+    expect((await api().get('/anuncios?estado=otro')).status).toBe(400);
+  });
+
+  it('busca por título sin acentos', async () => {
+    await crearAnuncio({ titulo: 'Reunión de padres' });
+    await crearAnuncio({ titulo: 'Bautizos' });
+    const res = await api().get('/anuncios?q=reunion');
+    expect(res.body.data.map((a: { titulo: string }) => a.titulo)).toEqual(['Reunión de padres']);
+  });
+
   it('lectura para todos los roles; escritura solo ADMIN, PASTOR y SECRETARIO', async () => {
     const anuncio = await crearAnuncio({ titulo: 'Aviso' });
     for (const rol of ['TESORERO', 'COORDINADOR'] as const) {
