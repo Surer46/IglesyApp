@@ -152,6 +152,7 @@ export function MiembrosPage() {
               columnas={COLUMNAS}
               datos={consulta.data.data}
               obtenerId={(m) => m.id}
+              alClicFila={(m) => navegar(`/miembros/${m.id}`)}
               orden={filtros.orden as Orden}
               alOrdenar={(orden) => setFiltros({ orden })}
               acciones={(m) => (

@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { Checkbox } from '@/components/ui/controles';
 import {
   Table,
@@ -39,9 +39,16 @@ interface DataTableProps<T> {
   alSeleccionar?: (ids: string[]) => void;
   /** Acciones por fila (botones o menú) en la última columna */
   acciones?: (fila: T) => ReactNode;
+  /**
+   * Clic en la fila (p. ej. abrir el detalle). No se dispara desde enlaces, botones ni controles,
+   * así que incluye un enlace en alguna celda para quien navega con teclado.
+   */
+  alClicFila?: (fila: T) => void;
   /** Etiqueta accesible de la tabla */
   etiqueta: string;
 }
+
+const CONTROLES = 'a, button, input, select, textarea, label, [role="checkbox"]';
 
 /**
  * Tabla de datos tipada: orden por columna, selección opcional y vista de tarjeta en móvil (< 768 px).
@@ -56,6 +63,7 @@ export function DataTable<T>({
   seleccionados,
   alSeleccionar,
   acciones,
+  alClicFila,
   etiqueta,
 }: DataTableProps<T>) {
   const [campoOrden, direccion] = (orden?.split(':') ?? []) as [
@@ -75,6 +83,13 @@ export function DataTable<T>({
 
   function alternarTodos() {
     alSeleccionar?.(todos ? [] : datos.map(obtenerId));
+  }
+
+  function clicEnFila(evento: MouseEvent<HTMLElement>, fila: T) {
+    const objetivo = evento.target as Element;
+    // React propaga los clics de portales (menús, diálogos): solo cuentan los de la propia fila
+    if (!evento.currentTarget.contains(objetivo) || objetivo.closest(CONTROLES)) return;
+    alClicFila?.(fila);
   }
 
   function ordenarPor(clave: string) {
@@ -142,7 +157,12 @@ export function DataTable<T>({
               const id = obtenerId(fila);
               const marcado = seleccionados?.includes(id) ?? false;
               return (
-                <TableRow key={id} data-state={marcado ? 'selected' : undefined}>
+                <TableRow
+                  key={id}
+                  data-state={marcado ? 'selected' : undefined}
+                  onClick={alClicFila && ((e) => clicEnFila(e, fila))}
+                  className={cn(alClicFila && 'cursor-pointer')}
+                >
                   {conSeleccion && (
                     <TableCell>
                       <Checkbox
@@ -172,7 +192,12 @@ export function DataTable<T>({
           return (
             <li
               key={id}
-              className={cn('flex gap-3 p-4', seleccionados?.includes(id) && 'bg-superficie-suave')}
+              onClick={alClicFila && ((e) => clicEnFila(e, fila))}
+              className={cn(
+                'flex gap-3 p-4',
+                seleccionados?.includes(id) && 'bg-superficie-suave',
+                alClicFila && 'cursor-pointer',
+              )}
             >
               {conSeleccion && (
                 <Checkbox

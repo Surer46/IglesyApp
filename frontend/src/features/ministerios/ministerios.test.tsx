@@ -51,6 +51,57 @@ describe('formulario de ministerio (F2-08)', () => {
   });
 });
 
+describe('actividades del ministerio (F2-11)', () => {
+  it('separa próximos y pasados, con enlace al detalle y estado', async () => {
+    const pasado = db.eventos.find((e) => e.id === 'ev-culto-pasado')!;
+    pasado.ministerioId = 'min-jovenes';
+    const { usuario } = await renderApp('/ministerios/min-jovenes', { como: 'u-secretario' });
+    await usuario.click(await screen.findByRole('tab', { name: 'Actividades' }));
+
+    const proximos = await screen.findByRole('list', { name: 'Próximos eventos' });
+    expect(within(proximos).getByRole('link', { name: 'Convivencia de jóvenes' })).toHaveAttribute(
+      'href',
+      '/eventos/ev-cancelado',
+    );
+    expect(within(proximos).getByText('Cancelado')).toBeInTheDocument();
+    expect(within(proximos).queryByText('Ensayo de alabanza')).not.toBeInTheDocument();
+
+    const pasados = await screen.findByRole('list', { name: 'Eventos pasados' });
+    expect(within(pasados).getByRole('link', { name: 'Culto dominical' })).toBeInTheDocument();
+    expect(within(pasados).queryByText('Convivencia de jóvenes')).not.toBeInTheDocument();
+  });
+
+  it('estado vacío', async () => {
+    const { usuario } = await renderApp('/ministerios/min-ninos', { como: 'u-secretario' });
+    await usuario.click(await screen.findByRole('tab', { name: 'Actividades' }));
+    expect(await screen.findByText('No hay eventos programados.')).toBeInTheDocument();
+    expect(screen.getByText('Todavía no hay eventos pasados.')).toBeInTheDocument();
+  });
+
+  it('"Nuevo evento" precarga el ministerio para su coordinador', async () => {
+    const { usuario } = await renderApp('/ministerios/min-jovenes', { como: 'u-coordinador' });
+    await usuario.click(await screen.findByRole('tab', { name: 'Actividades' }));
+    expect(await screen.findByRole('link', { name: /Nuevo evento/ })).toHaveAttribute(
+      'href',
+      '/eventos/nuevo?ministerioId=min-jovenes',
+    );
+  });
+
+  it('COORDINADOR de otro ministerio no ve "Nuevo evento"', async () => {
+    const { usuario } = await renderApp('/ministerios/min-musica', { como: 'u-coordinador' });
+    await usuario.click(await screen.findByRole('tab', { name: 'Actividades' }));
+    await screen.findByRole('list', { name: 'Próximos eventos' });
+    expect(screen.queryByRole('link', { name: /Nuevo evento/ })).not.toBeInTheDocument();
+  });
+
+  it('TESORERO solo consulta: no ve "Nuevo evento"', async () => {
+    const { usuario } = await renderApp('/ministerios/min-musica', { como: 'u-tesorero' });
+    await usuario.click(await screen.findByRole('tab', { name: 'Actividades' }));
+    await screen.findByRole('list', { name: 'Próximos eventos' });
+    expect(screen.queryByRole('link', { name: /Nuevo evento/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('detalle del ministerio (F2-09, F2-10)', () => {
   it('lista integrantes y muestra históricos con el interruptor', async () => {
     const { usuario } = await renderApp('/ministerios/min-jovenes', { como: 'u-secretario' });
