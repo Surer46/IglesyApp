@@ -5,6 +5,7 @@ import type { HorarioReunion } from './configuracion';
 // Espejo de backend/src/modules/anuncios y public (specs.md §7.2, B3)
 
 export type PrioridadAnuncio = 'NORMAL' | 'IMPORTANTE';
+export type EstadoAnuncio = 'vigentes' | 'programados' | 'expirados';
 
 export interface Anuncio {
   id: string;
@@ -23,6 +24,8 @@ export interface Anuncio {
 export interface QueryAnuncios extends QueryLista {
   /** true = publicados y no expirados; false = programados o expirados */
   vigentes?: boolean;
+  /** Pestañas del listado: vigentes, programados (publicación futura) o expirados */
+  estado?: EstadoAnuncio;
   prioridad?: PrioridadAnuncio;
 }
 

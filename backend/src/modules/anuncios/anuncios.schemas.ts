@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { esquemaPaginacion } from '../../lib/paginacion';
 
 export const PRIORIDADES = ['NORMAL', 'IMPORTANTE'] as const;
+/** vigentes = publicados y sin expirar · programados = publicación futura · expirados = ya vencidos */
+export const ESTADOS_ANUNCIO = ['vigentes', 'programados', 'expirados'] as const;
 
 const fechaHora = z.iso
   .datetime({ offset: true, message: 'Fecha y hora no válidas (ISO 8601).' })
@@ -59,6 +61,7 @@ export const esquemaListarAnuncios = esquemaPaginacion.extend({
     .transform((v) => v === 'true')
     .optional(),
   prioridad: z.enum(PRIORIDADES).optional(),
+  estado: z.enum(ESTADOS_ANUNCIO, { error: 'Estado no válido.' }).optional(),
 });
 
 export type QueryAnuncios = z.infer<typeof esquemaListarAnuncios>;

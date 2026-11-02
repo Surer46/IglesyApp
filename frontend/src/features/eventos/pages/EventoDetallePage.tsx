@@ -12,13 +12,22 @@ import {
   formatearFechaHora,
   formatearFechaLarga,
 } from '@/lib/formato';
+import { esErrorApi } from '@/lib/api';
 import { notificar } from '@/lib/notificar';
+import type { ErrorApi } from '@/types/comunes';
 import type { EventoDetalle } from '@/types/eventos';
 import { BadgeEstadoEvento } from '../components/categorias';
 import { ESTILO_CATEGORIA } from '../estilos';
 import { ResponsablesDialog } from '../components/ResponsablesDialog';
 import { useCancelarEvento, useEvento } from '../hooks';
 import { usePuedeGestionar } from '../permisos';
+
+const MIN_MOTIVO = 5;
+
+/** Error con el formato de la API para que ConfirmDialog muestre el mensaje del campo. */
+function errorMotivo(message: string): ErrorApi {
+  return { status: 400, code: 'VALIDATION_ERROR', message };
+}
 
 /** /eventos/:id: datos, responsables, resumen de asistencia y acciones según permisos y estado (F3-03). */
 export function EventoDetallePage() {
@@ -228,7 +237,16 @@ function DetalleEvento({ evento }: { evento: EventoDetalle }) {
         peligro
         motivo="obligatorio"
         alConfirmar={async (motivo) => {
-          await cancelar.mutateAsync({ id: evento.id, motivo: motivo ?? '' });
+          // ConfirmDialog muestra el `message`: se valida aquí con el mismo límite que el backend
+          if ((motivo ?? '').length < MIN_MOTIVO) {
+            throw errorMotivo(`El motivo debe tener al menos ${MIN_MOTIVO} caracteres.`);
+          }
+          try {
+            await cancelar.mutateAsync({ id: evento.id, motivo: motivo ?? '' });
+          } catch (error) {
+            const detalle = esErrorApi(error) ? error.details?.[0]?.mensaje : undefined;
+            throw detalle ? errorMotivo(detalle) : error;
+          }
           notificar.exito('Evento cancelado');
         }}
       />

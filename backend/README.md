@@ -66,6 +66,8 @@ const ministerios = await seedMinisterios(); // Map nombre → id
 
 Los eventos `PROGRAMADO` cuya fecha ya pasó se marcan `REALIZADO` al consultarlos (`eventosService.marcarRealizados()`), sin tareas programadas.
 
+Seed: `db:seed` también ejecuta `prisma/seed-b3.ts` (8 cultos y 4 reuniones de jóvenes pasados con asistencia, 3 eventos próximos, 1 cancelado y 4 anuncios: vigentes, programado y expirado), idempotente.
+
 Fechas sin hora (`?desde=2026-10-31&hasta=2026-10-31` en `/eventos` y `/asistencias`) cuentan como días completos en la zona horaria de la configuración (`eventos/eventos.fechas.ts`: `inicioDiaEnZona`, `finDiaEnZona`, `fechaEnZona`).
 
 ## Crear un módulo nuevo

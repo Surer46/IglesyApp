@@ -17,11 +17,12 @@ import * as eventosService from '../eventos/eventos.service';
 import type { Solicitante } from '../eventos/eventos.service';
 import * as miembrosService from '../miembros/miembros.service';
 import * as ministeriosService from '../ministerios/ministerios.service';
-import type {
-  Periodo,
-  QueryHistorial,
-  QueryResumen,
-  RegistroAsistencia,
+import {
+  MAX_DIAS_RESUMEN,
+  type Periodo,
+  type QueryHistorial,
+  type QueryResumen,
+  type RegistroAsistencia,
 } from './asistencia.schemas';
 
 const DIA_MS = 86_400_000;
@@ -134,6 +135,11 @@ export async function registrar(
   }
 
   const miembroIds = registros.map((r) => r.miembroId);
+  // COORDINADOR (solo "-propio"): únicamente integrantes activos del ministerio del evento
+  const integrantes =
+    !tienePermiso(solicitante.rol, 'asistencia:crear') && evento.ministerioId
+      ? new Set((await ministeriosService.miembrosDe(evento.ministerioId)).map((m) => m.id))
+      : null;
   await prisma.$transaction(async (tx) => {
     // Secuenciales: una transacción usa una sola conexión
     const miembros = await tx.miembro.findMany({
@@ -152,6 +158,14 @@ export async function registrar(
       if (!m) return [{ campo: 'registros', mensaje: `El miembro ${id} no existe.` }];
       if (!m.activo && !yaRegistrados.has(id)) {
         return [{ campo: 'registros', mensaje: `${m.nombre} ${m.apellidos} está inactivo.` }];
+      }
+      if (integrantes && !integrantes.has(id) && !yaRegistrados.has(id)) {
+        return [
+          {
+            campo: 'registros',
+            mensaje: `${m.nombre} ${m.apellidos} no pertenece al ministerio del evento.`,
+          },
+        ];
       }
       return [];
     });
@@ -245,7 +259,7 @@ export async function porcentajeMiembro(miembroId: string, meses = 3) {
     prisma.asistencia.count({ where }),
     prisma.asistencia.count({ where: { ...where, presente: true } }),
     prisma.asistencia.findFirst({
-      where: { miembroId, presente: true },
+      where: { miembroId, presente: true, evento: { estado: { not: 'CANCELADO' } } },
       orderBy: { evento: { fechaInicio: 'desc' } },
       select: { evento: { select: { id: true, titulo: true, fechaInicio: true } } },
     }),
@@ -363,6 +377,17 @@ export async function resumen(query: QueryResumen, solicitante: Solicitante) {
   const hasta = query.hasta ?? fechaEnZona(new Date(), zonaHoraria);
   const desde =
     query.desde ?? (query.periodo === 'semanal' ? restarDias(hasta, 7 * 11) : inicioMes(hasta, 5));
+  // El esquema solo valida el rango si vienen ambas fechas; aquí ya están completas
+  if (hasta < desde) {
+    throw AppError.validacion('Los datos enviados no son válidos.', [
+      { campo: 'hasta', mensaje: '"hasta" debe ser igual o posterior a "desde".' },
+    ]);
+  }
+  if ((Date.parse(hasta) - Date.parse(desde)) / DIA_MS > MAX_DIAS_RESUMEN) {
+    throw AppError.validacion('Los datos enviados no son válidos.', [
+      { campo: 'desde', mensaje: 'El rango no puede pasar de 2 años.' },
+    ]);
+  }
   const filtro = query.ministerioId ? [query.ministerioId] : ministerios;
   return resumenPorPeriodo(query.periodo, desde, hasta, filtro);
 }

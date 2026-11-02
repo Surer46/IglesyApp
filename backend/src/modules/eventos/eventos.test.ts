@@ -196,6 +196,13 @@ describe('GET /eventos (B3-02)', () => {
     expect(res.body.data.map((e: { titulo: string }) => e.titulo)).toEqual(['Noche del 31']);
   });
 
+  it('busca por título sin acentos ni mayúsculas', async () => {
+    await crearEventoBd({ titulo: 'Reunión de oración' });
+    await crearEventoBd({ titulo: 'Culto' });
+    const res = await api().get('/eventos?q=REUNION');
+    expect(res.body.data.map((e: { titulo: string }) => e.titulo)).toEqual(['Reunión de oración']);
+  });
+
   it('rango > 93 días → 400', async () => {
     const res = await api().get('/eventos?desde=2026-01-01&hasta=2026-06-01');
     expect(res.status).toBe(400);
@@ -257,6 +264,17 @@ describe('GET/PATCH /eventos/:id (B3-03)', () => {
     const mal = await api().patch(`/eventos/${evento.id}`, { fechaFin: enDias(4).toISOString() });
     expect(mal.status).toBe(400);
     expect((await api().patch(`/eventos/${evento.id}`, {})).status).toBe(400);
+  });
+
+  it('un evento REALIZADO reprogramado a fecha futura vuelve a PROGRAMADO y a próximos', async () => {
+    const evento = await crearEventoBd({ titulo: 'Fecha equivocada', fechaInicio: enDias(-2) });
+    expect((await api().get(`/eventos/${evento.id}`)).body.data.estado).toBe('REALIZADO');
+    const res = await api().patch(`/eventos/${evento.id}`, {
+      fechaInicio: enDias(4).toISOString(),
+    });
+    expect(res.body.data.estado).toBe('PROGRAMADO');
+    const proximos = await api().get('/eventos/proximos');
+    expect(proximos.body.data.map((e: { id: string }) => e.id)).toContain(evento.id);
   });
 
   it('no se edita un evento CANCELADO → 422', async () => {

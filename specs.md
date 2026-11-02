@@ -384,7 +384,7 @@ Actividades del ministerio → `GET /eventos?ministerioId=` (B3).
 `GET /asistencias?miembroId&eventoId&desde&hasta` · `GET /asistencias/resumen?periodo=semanal|mensual&desde&hasta`
 
 **Anuncios** (B3)
-`GET /anuncios?vigentes=true&prioridad` · `GET /anuncios/:id` · `POST /anuncios` · `PATCH /anuncios/:id` · `DELETE /anuncios/:id`
+`GET /anuncios?vigentes=true&prioridad&estado=vigentes|programados|expirados` · `GET /anuncios/:id` · `POST /anuncios` · `PATCH /anuncios/:id` · `DELETE /anuncios/:id`
 
 **Público** (B3)
 `GET /public/cartelera` → `{ iglesia, horarios, anuncios (vigentes), eventosProximos }`

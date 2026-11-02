@@ -4,8 +4,8 @@ import { esquemaPaginacion } from '../../lib/paginacion';
 export const PERIODOS = ['semanal', 'mensual'] as const;
 export type Periodo = (typeof PERIODOS)[number];
 
-/** Máximo de registros por pase de lista. */
-export const MAX_REGISTROS = 2000;
+/** Máximo de registros por pase de lista (RNF-02: hasta 5 000 miembros). */
+export const MAX_REGISTROS = 5000;
 /** Rango máximo del resumen (≈ 2 años). */
 export const MAX_DIAS_RESUMEN = 731;
 
