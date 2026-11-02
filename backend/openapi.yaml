@@ -888,6 +888,7 @@ paths:
     get:
       tags: [Miembros]
       summary: Detalle con ministerios (actuales e históricos)
+      description: Con `asistencia:leer` incluye `resumenAsistencia { meses, presentes, total, porcentaje, ultimaAsistencia }` de los últimos 3 meses; sin ese permiso el campo se omite.
       responses:
         '200': { description: OK }
         '404': { $ref: '#/components/responses/NoEncontrado' }

@@ -217,6 +217,74 @@ describe('GET /miembros/:id y PATCH /miembros/:id (B2-04)', () => {
   });
 });
 
+describe('resumen de asistencia en GET /miembros/:id (B2-04)', () => {
+  async function miembroConAsistencia() {
+    const miembro = await crearMiembro();
+    const evento = (titulo: string) =>
+      prisma.evento.create({
+        data: {
+          titulo,
+          tipo: 'RELIGIOSO',
+          categoria: 'CULTO',
+          lugar: 'Templo',
+          fechaInicio: new Date(Date.now() - 86_400_000),
+          creadoPorId: admin.usuario.id,
+        },
+      });
+    const [uno, dos] = [await evento('Culto A'), await evento('Culto B')];
+    await prisma.asistencia.createMany({
+      data: [
+        {
+          eventoId: uno.id,
+          miembroId: miembro.id,
+          presente: true,
+          registradoPorId: admin.usuario.id,
+        },
+        {
+          eventoId: dos.id,
+          miembroId: miembro.id,
+          presente: false,
+          registradoPorId: admin.usuario.id,
+        },
+      ],
+    });
+    return miembro;
+  }
+
+  it('con asistencia:leer incluye el % de 3 meses y el último evento asistido', async () => {
+    const miembro = await miembroConAsistencia();
+    const { auth } = await loginComo('SECRETARIO');
+    const res = await api().get(`/miembros/${miembro.id}`, auth);
+    expect(res.body.data.resumenAsistencia).toMatchObject({
+      meses: 3,
+      presentes: 1,
+      total: 2,
+      porcentaje: 50,
+      ultimaAsistencia: { titulo: 'Culto A' },
+    });
+  });
+
+  it('sin asistencia:leer el campo se omite (TESORERO y COORDINADOR)', async () => {
+    const miembro = await miembroConAsistencia();
+    for (const rol of ['TESORERO', 'COORDINADOR'] as const) {
+      const { auth } = await loginComo(rol);
+      const res = await api().get(`/miembros/${miembro.id}`, auth);
+      expect(res.status).toBe(200);
+      expect(res.body.data).not.toHaveProperty('resumenAsistencia');
+    }
+  });
+
+  it('sin registros el porcentaje es null', async () => {
+    const miembro = await crearMiembro();
+    const res = await api().get(`/miembros/${miembro.id}`);
+    expect(res.body.data.resumenAsistencia).toMatchObject({
+      total: 0,
+      porcentaje: null,
+      ultimaAsistencia: null,
+    });
+  });
+});
+
 describe('paginación de la búsqueda en SQL (revisión del PR #3)', () => {
   it('pagina y ordena los resultados de la búsqueda sin traer todos los ids', async () => {
     for (let i = 1; i <= 25; i++) {

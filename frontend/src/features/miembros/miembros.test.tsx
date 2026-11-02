@@ -56,6 +56,22 @@ describe('listado de miembros (F2-01)', () => {
   });
 });
 
+describe('clic en fila (F2-01)', () => {
+  it('abre el perfil al pulsar cualquier parte de la fila', async () => {
+    const { usuario } = await renderApp('/miembros', { como: 'u-secretario' });
+    await usuario.click(within(await tabla()).getByText('9991234567'));
+    expect(await screen.findByRole('heading', { name: 'José Chan May' })).toBeInTheDocument();
+  });
+
+  it('las acciones de la fila no abren el perfil', async () => {
+    const { usuario } = await renderApp('/miembros', { como: 'u-secretario' });
+    await abrirAcciones(usuario, 'Ana Pérez Uc');
+    await usuario.click(await screen.findByRole('menuitem', { name: /Desactivar/ }));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Desactivar miembro');
+    expect(screen.queryByRole('tab', { name: 'Datos' })).not.toBeInTheDocument();
+  });
+});
+
 describe('desactivar y reactivar (F2-03)', () => {
   it('desactiva con motivo opcional y actualiza el badge sin recargar', async () => {
     const { usuario } = await renderApp('/miembros?estado=todos', { como: 'u-secretario' });
@@ -135,6 +151,39 @@ describe('formulario de miembro (F2-02)', () => {
       await screen.findByRole('heading', { name: 'Luis Alberto Aké Novelo' }),
     ).toBeInTheDocument();
     expect(db.miembros.find((m) => m.id === 'm-luis')?.nombre).toBe('Luis Alberto');
+  });
+});
+
+describe('perfil: asistencia (F2-04)', () => {
+  it('muestra el historial, el % de 3 meses y el último evento', async () => {
+    const { usuario } = await renderApp('/miembros/m-jose', { como: 'u-secretario' });
+    await usuario.click(await screen.findByRole('tab', { name: 'Asistencia' }));
+    const tabla = await screen.findByRole('table', { name: 'Historial de asistencia' });
+    expect(within(tabla).getByRole('link', { name: 'Culto dominical' })).toBeInTheDocument();
+    expect(within(tabla).getByText('Presente')).toBeInTheDocument();
+    expect(screen.getByText('100 %')).toBeInTheDocument();
+    expect(screen.getByText('1 de 1 eventos')).toBeInTheDocument();
+    expect(screen.getByText('Último evento asistido')).toBeInTheDocument();
+  });
+
+  it('estado vacío sin registros', async () => {
+    const { usuario } = await renderApp('/miembros/m-sofia', { como: 'u-secretario' });
+    await usuario.click(await screen.findByRole('tab', { name: 'Asistencia' }));
+    expect(await screen.findByText('Sin asistencia registrada')).toBeInTheDocument();
+    expect(screen.getByText('Sin registros')).toBeInTheDocument();
+  });
+
+  it('TESORERO no ve la pestaña de asistencia', async () => {
+    await renderApp('/miembros/m-jose', { como: 'u-tesorero' });
+    expect(await screen.findByRole('tab', { name: 'Aportaciones' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Asistencia' })).not.toBeInTheDocument();
+  });
+
+  it('COORDINADOR ve el historial de sus ministerios, sin el % general', async () => {
+    const { usuario } = await renderApp('/miembros/m-jose', { como: 'u-coordinador' });
+    await usuario.click(await screen.findByRole('tab', { name: 'Asistencia' }));
+    expect(await screen.findByText('Sin asistencia registrada')).toBeInTheDocument();
+    expect(screen.queryByText('Último evento asistido')).not.toBeInTheDocument();
   });
 });
 
