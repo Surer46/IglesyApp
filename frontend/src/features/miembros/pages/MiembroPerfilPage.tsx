@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarCheck, HandCoins, Pencil, UserCheck, UserX } from 'lucide-react';
+import { ArrowLeft, HandCoins, Pencil, UserCheck, UserX } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import { BadgeEstado } from '@/components/comunes/BadgeEstado';
@@ -10,6 +10,7 @@ import { Alert, Card, CardContent, CardHeader, CardTitle } from '@/components/ui
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermiso } from '@/hooks/usePermiso';
 import { formatearFecha } from '@/lib/formato';
+import { AsistenciaDelMiembro } from '../components/AsistenciaDelMiembro';
 import { DialogoEstadoMiembro } from '../components/DialogoEstadoMiembro';
 import { MinisteriosDelMiembro } from '../components/MinisteriosDelMiembro';
 import { useMiembro } from '../hooks';
@@ -29,6 +30,7 @@ export function MiembroPerfilPage() {
   const { id } = useParams();
   const { state } = useLocation() as { state: EstadoPerfilMiembro | null };
   const consulta = useMiembro(id);
+  const verAsistencia = usePermiso('asistencia:leer', 'asistencia:leer-propio');
   const verAportaciones = usePermiso('donaciones:leer');
   const [cambiarEstado, setCambiarEstado] = useState(false);
 
@@ -94,7 +96,7 @@ export function MiembroPerfilPage() {
       <Tabs defaultValue="datos">
         <TabsList>
           <TabsTrigger value="datos">Datos</TabsTrigger>
-          <TabsTrigger value="asistencia">Asistencia</TabsTrigger>
+          {verAsistencia && <TabsTrigger value="asistencia">Asistencia</TabsTrigger>}
           {verAportaciones && <TabsTrigger value="aportaciones">Aportaciones</TabsTrigger>}
         </TabsList>
 
@@ -125,16 +127,12 @@ export function MiembroPerfilPage() {
           <MinisteriosDelMiembro miembro={miembro} />
         </TabsContent>
 
-        {/* Historial y % de asistencia: se conecta con useAsistencias({ miembroId }) de F3 */}
-        <TabsContent value="asistencia">
-          <Card>
-            <EmptyState
-              icono={CalendarCheck}
-              titulo="Historial de asistencia"
-              descripcion="Aquí se mostrará la asistencia del miembro cuando el módulo de asistencia esté disponible."
-            />
-          </Card>
-        </TabsContent>
+        {/* Solo con permiso de asistencia: el TESORERO no la ve (specs.md §3) */}
+        {verAsistencia && (
+          <TabsContent value="asistencia">
+            <AsistenciaDelMiembro miembro={miembro} />
+          </TabsContent>
+        )}
 
         {/* Solo con donaciones:leer. Se conecta con la lista resumida de F4 */}
         {verAportaciones && (

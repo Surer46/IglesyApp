@@ -1,13 +1,4 @@
-import {
-  ArrowLeft,
-  CalendarDays,
-  Pencil,
-  Power,
-  UserCog,
-  UserMinus,
-  UserPlus,
-  Users,
-} from 'lucide-react';
+import { ArrowLeft, Pencil, Power, UserCog, UserMinus, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { BadgeEstado } from '@/components/comunes/BadgeEstado';
@@ -26,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatearFecha } from '@/lib/formato';
 import { notificar } from '@/lib/notificar';
 import type { Integrante, Ministerio } from '@/types/ministerios';
+import { ActividadesMinisterio } from '../components/ActividadesMinisterio';
 import { AgregarIntegrantesDialog } from '../components/AgregarIntegrantesDialog';
 import { CoordinadoresDialog } from '../components/CoordinadoresDialog';
 import { MinisterioFormDialog } from '../components/MinisterioFormDialog';
@@ -262,15 +254,8 @@ export function MinisterioDetallePage() {
         <TabsContent value="integrantes">
           <Integrantes ministerio={ministerio} />
         </TabsContent>
-        {/* F2-11 (fase 3): se conecta con la lista de eventos de F3 (useEventos({ ministerioId })) */}
         <TabsContent value="actividades">
-          <Card>
-            <EmptyState
-              icono={CalendarDays}
-              titulo="Actividades programadas"
-              descripcion="Aquí se mostrarán los próximos eventos y los pasados de este ministerio cuando el módulo de eventos esté disponible."
-            />
-          </Card>
+          <ActividadesMinisterio ministerio={ministerio} />
         </TabsContent>
       </Tabs>
 

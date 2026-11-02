@@ -6,7 +6,7 @@
 - **Criterios de aceptación**
   - [x] Estados cargando / vacío / error.
   - [x] En móvil se muestra como tarjetas.
-  - [ ] Clic en fila abre el perfil. (por ahora: clic en el nombre)
+  - [x] Clic en fila abre el perfil.
 
 ### F2-02 · Formulario de alta y edición
 - **RF:** RF-02.1, RF-02.3, RF-02.4 · **Fase:** 1 · **Tamaño:** M · **Depende de:** F1-07, B2-01, B2-04
@@ -39,4 +39,4 @@
 - Combobox con búsqueda asíncrona (debounce), modo `simple` / `multiple` (chips), prop `ministerioId?`, `incluirInactivos?`, `excluirIds?`. Accesible (Radix Popover + listbox).
 - **Criterios de aceptación**
   - [x] Ejemplo en `/_dev/ui` y prueba de selección múltiple.
-  - [ ] Avisado a F3 y F4 con ejemplo de uso en el PR.
+  - [x] Avisado a F3 y F4 con ejemplo de uso en el PR.
