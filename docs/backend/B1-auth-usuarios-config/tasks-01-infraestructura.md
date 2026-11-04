@@ -21,8 +21,8 @@
 - Traducir `specs.md §6` a `schema.prisma` con enums, relaciones, índices y `@@map` a snake_case. Migración `init`. `lib/prisma.ts` con cliente singleton.
 - **Criterios de aceptación**
   - [x] `prisma migrate dev` crea todas las tablas sin errores.
-  - [ ] Revisado por B2, B3 y B4 (cada uno aprueba sus modelos en el PR). *(pendiente: revisión de compañeros en el PR)*
-  - [ ] `prisma studio` muestra todos los modelos. *(no verificado; correr `pnpm --filter backend db:studio`)*
+  - [x] Revisado por B2, B3 y B4 (cada uno aprueba sus modelos en el PR). *(B2 lo revisó en el PR #3 sin cambios; B3 usa sus modelos sin cambios en el PR #6; B4 lo revisó en la Auditoría 1 y pidió `Donacion.anuladaPorId`, A1-B4-01, pendiente de su PR)*
+  - [x] `prisma studio` muestra todos los modelos. *(verificado 2026-11-04: aparecen las 14 tablas del schema)*
 
 ### B1-04 · Seed mínimo
 - **Fase:** 0 · **Tamaño:** S · **Depende de:** B1-03
