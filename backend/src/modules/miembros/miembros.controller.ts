@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express';
 import { ok, okLista } from '../../lib/respuesta';
+import { usuarioDe } from '../../middlewares/auth';
 import type { QueryMiembros } from './miembros.schemas';
 import * as miembrosService from './miembros.service';
 
@@ -11,7 +12,7 @@ export const listar: RequestHandler = async (req, res) => {
 };
 
 export const obtener: RequestHandler<ConId> = async (req, res) => {
-  res.json(ok(await miembrosService.obtener(req.params.id)));
+  res.json(ok(await miembrosService.obtener(req.params.id, usuarioDe(req).rol)));
 };
 
 // Posible duplicado = advertencia en meta, no error (B2-01)
