@@ -91,7 +91,8 @@ export async function listar(query: QueryAnuncios) {
   if (query.prioridad) filtros.push({ prioridad: query.prioridad });
   if (query.q) filtros.push({ id: { in: await idsPorTitulo(query.q) } });
   const where: Prisma.AnuncioWhereInput = { AND: filtros };
-  const [filas, total] = await prisma.$transaction([
+  // Lecturas en paralelo (A1-B1-01): $transaction([...]) usa una sola conexión y pg avisa
+  const [filas, total] = await Promise.all([
     prisma.anuncio.findMany({ where, orderBy: ORDEN, skip, take, select: SELECT_ANUNCIO }),
     prisma.anuncio.count({ where }),
   ]);

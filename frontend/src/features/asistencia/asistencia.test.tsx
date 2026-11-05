@@ -211,7 +211,7 @@ describe('resumen de asistencia (F3-09)', () => {
     ).toBeInTheDocument();
     await usuario.click(screen.getByRole('button', { name: 'Mensual' }));
     expect(screen.getByRole('button', { name: 'Mensual' })).toHaveAttribute('aria-pressed', 'true');
-    // "Exportar" no aparece hasta que exista /reportes (F4)
-    expect(screen.queryByRole('link', { name: /Exportar/ })).not.toBeInTheDocument();
+    // Exportar usa el BotonExportar de F4 (PDF / Excel)
+    expect(screen.getByRole('button', { name: /Exportar/ })).toBeInTheDocument();
   });
 });

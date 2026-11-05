@@ -8,6 +8,7 @@ import * as eventosService from './eventos.service';
 let app: ReturnType<typeof crearApp>;
 let admin: Awaited<ReturnType<typeof loginComo>>;
 beforeEach(async () => {
+  eventosService.reiniciarMarcaRealizados();
   app = crearApp();
   admin = await loginComo('ADMIN');
 });
@@ -416,6 +417,15 @@ describe('próximos eventos y estado REALIZADO (B3-06)', () => {
     expect(estadoDe(conFin.id)).toBe('PROGRAMADO');
     expect(estadoDe(cancelado.id)).toBe('CANCELADO');
     expect(estadoDe(futuro.id)).toBe('PROGRAMADO');
+  });
+
+  it('marcarRealizados escribe a lo más una vez por minuto (A1-B3-03)', async () => {
+    const ahora = new Date();
+    await crearEventoBd({ fechaInicio: enDias(-3) });
+    expect(await eventosService.marcarRealizados(ahora)).toBe(1);
+    await crearEventoBd({ fechaInicio: enDias(-2) });
+    expect(await eventosService.marcarRealizados(new Date(ahora.getTime() + 30_000))).toBe(0);
+    expect(await eventosService.marcarRealizados(new Date(ahora.getTime() + 61_000))).toBe(1);
   });
 
   it('al consultar el detalle de un evento pasado ya aparece REALIZADO', async () => {

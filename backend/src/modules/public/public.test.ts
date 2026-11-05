@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { crearApp } from '../../app';
 import { prisma } from '../../lib/prisma';
 import { crearUsuario } from '../../test/helpers';
+import * as eventosService from '../eventos/eventos.service';
 
 let app: ReturnType<typeof crearApp>;
 beforeEach(() => {
+  eventosService.reiniciarMarcaRealizados();
   app = crearApp();
 });
 

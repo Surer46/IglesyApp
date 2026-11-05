@@ -4,10 +4,12 @@ import { crearApp } from '../../app';
 import { prisma } from '../../lib/prisma';
 import { loginComo } from '../../test/helpers';
 import * as anunciosService from './anuncios.service';
+import * as eventosService from '../eventos/eventos.service';
 
 let app: ReturnType<typeof crearApp>;
 let admin: Awaited<ReturnType<typeof loginComo>>;
 beforeEach(async () => {
+  eventosService.reiniciarMarcaRealizados();
   app = crearApp();
   admin = await loginComo('ADMIN');
 });

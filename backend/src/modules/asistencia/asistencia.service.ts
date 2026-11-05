@@ -141,7 +141,9 @@ export async function registrar(
       ? new Set((await ministeriosService.miembrosDe(evento.ministerioId)).map((m) => m.id))
       : null;
   await prisma.$transaction(async (tx) => {
-    // Secuenciales: una transacción usa una sola conexión
+    // Secuenciales: una transacción usa una sola conexión.
+    // Se lee `miembros` (de B2) con `tx` y no con su service a propósito: la validación debe ver
+    // el mismo estado que el INSERT de abajo, dentro de la misma transacción (A1-B3-02).
     const miembros = await tx.miembro.findMany({
       where: { id: { in: miembroIds } },
       select: { id: true, nombre: true, apellidos: true, activo: true },

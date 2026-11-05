@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/table';
 import { useMinisteriosCoordinados } from '@/features/eventos/permisos';
 import { useMinisterios } from '@/features/ministerios/hooks';
+import { BotonExportar } from '@/features/reportes/components/BotonExportar';
 import { usePermiso } from '@/hooks/usePermiso';
 import type { PeriodoResumen, QueryResumenAsistencia } from '@/types/asistencia';
 import { useResumenAsistencia } from '../hooks';
@@ -101,7 +102,16 @@ export function ResumenAsistencia({ filtros, alCambiar }: ResumenAsistenciaProps
           valor={filtros.ministerioId || TODOS}
           alCambiar={(v) => alCambiar({ ministerioId: v === TODOS ? '' : v })}
         />
-        {/* "Exportar" llevará al reporte de asistencia de F4 cuando exista /reportes */}
+        {/* Reporte de asistencia de F4 (PDF / Excel) con los mismos filtros; se oculta sin permiso */}
+        <BotonExportar
+          tipo="asistencia"
+          className="sm:ml-auto"
+          filtros={{
+            periodo,
+            ...(filtros.desde && { desde: filtros.desde }),
+            ...(filtros.hasta && { hasta: filtros.hasta }),
+          }}
+        />
       </FiltrosBar>
 
       <Card>

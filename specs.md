@@ -312,6 +312,8 @@ model HorarioReunion { id, nombre, diaSemana Int (0=domingo..6), horaInicio "HH:
 **Reglas de integridad**
 - `Donacion.anonima = true` ⇒ `miembroId = null`. Si `miembroId` es null ⇒ se trata como anónima.
 - `Asistencia` solo para eventos `PROGRAMADO`/`REALIZADO` y miembros activos al momento del registro.
+- La asistencia se registra desde 24 h antes del inicio del evento (antes → 422 `BUSINESS_RULE`). Un miembro ya registrado puede corregirse aunque luego haya quedado inactivo. El COORDINADOR solo registra a integrantes del ministerio del evento.
+- Una asistencia guardada se cambia entre presente y ausente, pero no se borra (no hay `DELETE`).
 - `Evento.fechaFin`, si existe, ≥ `fechaInicio`.
 - Usuarios, miembros, ministerios y donaciones **nunca** se borran físicamente. Anuncios y horarios sí.
 
