@@ -1,13 +1,14 @@
-import { ArrowLeft, HandCoins, Pencil, UserCheck, UserX } from 'lucide-react';
+import { ArrowLeft, Pencil, UserCheck, UserX } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import { BadgeEstado } from '@/components/comunes/BadgeEstado';
-import { EmptyState, ErrorState, SkeletonTabla } from '@/components/comunes/Estados';
+import { ErrorState, SkeletonTabla } from '@/components/comunes/Estados';
 import { PageHeader } from '@/components/comunes/PageHeader';
 import { Puede } from '@/components/comunes/Puede';
 import { Button } from '@/components/ui/button';
 import { Alert, Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AportacionesDelMiembro } from '@/features/donaciones/components/AportacionesDelMiembro';
 import { usePermiso } from '@/hooks/usePermiso';
 import { formatearFecha } from '@/lib/formato';
 import { AsistenciaDelMiembro } from '../components/AsistenciaDelMiembro';
@@ -134,15 +135,13 @@ export function MiembroPerfilPage() {
           </TabsContent>
         )}
 
-        {/* Solo con donaciones:leer. Se conecta con la lista resumida de F4 */}
+        {/* Solo con donaciones:leer */}
         {verAportaciones && (
           <TabsContent value="aportaciones">
             <Card>
-              <EmptyState
-                icono={HandCoins}
-                titulo="Aportaciones"
-                descripcion="Aquí se mostrarán las aportaciones del miembro cuando el módulo de donaciones esté disponible."
-              />
+              <CardContent className="p-4">
+                <AportacionesDelMiembro miembroId={miembro.id} />
+              </CardContent>
             </Card>
           </TabsContent>
         )}

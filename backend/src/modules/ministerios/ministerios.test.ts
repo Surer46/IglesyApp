@@ -161,6 +161,18 @@ describe('PUT /ministerios/:id/coordinadores (B2-08)', () => {
     expect(await prisma.ministerioCoordinador.count()).toBe(0);
   });
 
+  it('usuario inexistente → 422 indicando cuál; no cambia la lista', async () => {
+    const ministerio = await crearMinisterio();
+    const coord = await crearUsuario('COORDINADOR');
+    await api().put(`/ministerios/${ministerio.id}/coordinadores`, { usuarioIds: [coord.id] });
+    const res = await api().put(`/ministerios/${ministerio.id}/coordinadores`, {
+      usuarioIds: [ID_INEXISTENTE],
+    });
+    expect(res.status).toBe(422);
+    expect(res.body.error.message).toContain(ID_INEXISTENTE);
+    expect(await prisma.ministerioCoordinador.count()).toBe(1);
+  });
+
   it('validación → 400; COORDINADOR → 403', async () => {
     const ministerio = await crearMinisterio();
     expect(

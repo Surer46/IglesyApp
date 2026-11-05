@@ -14,6 +14,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/controles';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BotonExportar } from '@/features/reportes/components/BotonExportar';
+import { usePermiso } from '@/hooks/usePermiso';
 import { formatearFecha } from '@/lib/formato';
 import { notificar } from '@/lib/notificar';
 import type { Integrante, Ministerio } from '@/types/ministerios';
@@ -172,6 +174,8 @@ export function MinisterioDetallePage() {
   const { id } = useParams();
   const consulta = useMinisterio(id);
   const cambiarEstado = useCambiarEstadoMinisterio();
+  const reportesCompletos = usePermiso('reportes:generales');
+  const coordinaOGestiona = usePuedeGestionarIntegrantes();
   const [editarAbierto, setEditarAbierto] = useState(false);
   const [coordinadoresAbierto, setCoordinadoresAbierto] = useState(false);
   const [estadoAbierto, setEstadoAbierto] = useState(false);
@@ -205,6 +209,10 @@ export function MinisterioDetallePage() {
                 <ArrowLeft aria-hidden /> Ministerios
               </Link>
             </Button>
+            {/* COORDINADOR: el backend solo le permite el reporte de sus ministerios */}
+            {(reportesCompletos || coordinaOGestiona(ministerio)) && (
+              <BotonExportar tipo="ministerios" filtros={{ ministerioId: ministerio.id }} />
+            )}
             <Puede permiso="ministerios:editar">
               <Button variante="contorno" onClick={() => setEditarAbierto(true)}>
                 <Pencil aria-hidden /> Editar

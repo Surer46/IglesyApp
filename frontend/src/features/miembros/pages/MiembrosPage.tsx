@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useMinisterios } from '@/features/ministerios/hooks';
+import { BotonExportar } from '@/features/reportes/components/BotonExportar';
 import { useFiltrosURL } from '@/hooks/useFiltrosURL';
 import { usePermiso } from '@/hooks/usePermiso';
 import { formatearFecha } from '@/lib/formato';
@@ -104,7 +105,15 @@ export function MiembrosPage() {
       <PageHeader
         titulo="Miembros"
         descripcion="Personas de la congregación."
-        acciones={<Puede permiso="miembros:crear">{nuevo}</Puede>}
+        acciones={
+          <>
+            <BotonExportar
+              tipo="miembros"
+              filtros={{ estado: filtros.estado as EstadoMiembroFiltro }}
+            />
+            <Puede permiso="miembros:crear">{nuevo}</Puede>
+          </>
+        }
       />
 
       <FiltrosBar>

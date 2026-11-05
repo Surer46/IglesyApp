@@ -56,6 +56,19 @@ describe('listado de miembros (F2-01)', () => {
   });
 });
 
+describe('exportar (A1-F2-02)', () => {
+  it('el listado ofrece "Exportar" a quien ve el reporte', async () => {
+    await renderApp('/miembros', { como: 'u-secretario' });
+    expect(await screen.findByRole('button', { name: /Exportar/ })).toBeInTheDocument();
+  });
+
+  it('TESORERO no ve "Exportar" (sin reportes generales)', async () => {
+    await renderApp('/miembros', { como: 'u-tesorero' });
+    await tabla();
+    expect(screen.queryByRole('button', { name: /Exportar/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('clic en fila (F2-01)', () => {
   it('abre el perfil al pulsar cualquier parte de la fila', async () => {
     const { usuario } = await renderApp('/miembros', { como: 'u-secretario' });
@@ -184,6 +197,14 @@ describe('perfil: asistencia (F2-04)', () => {
     await usuario.click(await screen.findByRole('tab', { name: 'Asistencia' }));
     expect(await screen.findByText('Sin asistencia registrada')).toBeInTheDocument();
     expect(screen.queryByText('Último evento asistido')).not.toBeInTheDocument();
+  });
+});
+
+describe('perfil: aportaciones (A1-F2-01)', () => {
+  it('TESORERO ve las aportaciones del miembro', async () => {
+    const { usuario } = await renderApp('/miembros/m-sofia', { como: 'u-tesorero' });
+    await usuario.click(await screen.findByRole('tab', { name: 'Aportaciones' }));
+    expect(await screen.findByText('Este miembro aún no tiene aportaciones')).toBeInTheDocument();
   });
 });
 

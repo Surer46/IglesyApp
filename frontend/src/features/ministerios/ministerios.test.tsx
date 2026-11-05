@@ -102,6 +102,30 @@ describe('actividades del ministerio (F2-11)', () => {
   });
 });
 
+describe('exportar (A1-F2-02)', () => {
+  it('el detalle ofrece "Exportar" a quien ve el reporte; TESORERO no', async () => {
+    const { unmount } = await renderApp('/ministerios/min-jovenes', { como: 'u-secretario' });
+    expect(await screen.findByRole('button', { name: /Exportar/ })).toBeInTheDocument();
+    unmount();
+    await renderApp('/ministerios/min-jovenes', { como: 'u-tesorero' });
+    await screen.findByRole('table', { name: 'Integrantes' });
+    expect(screen.queryByRole('button', { name: /Exportar/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('exportar: coordinador (A1-F2-02)', () => {
+  it('lo ve en su ministerio', async () => {
+    await renderApp('/ministerios/min-jovenes', { como: 'u-coordinador' });
+    expect(await screen.findByRole('button', { name: /Exportar/ })).toBeInTheDocument();
+  });
+
+  it('no lo ve en un ministerio ajeno (el backend respondería 403)', async () => {
+    await renderApp('/ministerios/min-musica', { como: 'u-coordinador' });
+    await screen.findByRole('table', { name: 'Integrantes' });
+    expect(screen.queryByRole('button', { name: /Exportar/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('detalle del ministerio (F2-09, F2-10)', () => {
   it('lista integrantes y muestra históricos con el interruptor', async () => {
     const { usuario } = await renderApp('/ministerios/min-jovenes', { como: 'u-secretario' });
