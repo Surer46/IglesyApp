@@ -1,5 +1,4 @@
-import { BarChart3, FileDown } from 'lucide-react';
-import { Link } from 'react-router';
+import { BarChart3 } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -25,6 +24,7 @@ import {
 } from '@/components/ui/table';
 import { useMinisteriosCoordinados } from '@/features/eventos/permisos';
 import { useMinisterios } from '@/features/ministerios/hooks';
+import { BotonExportar } from '@/features/reportes/components/BotonExportar';
 import { usePermiso } from '@/hooks/usePermiso';
 import type { PeriodoResumen, QueryResumenAsistencia } from '@/types/asistencia';
 import { useResumenAsistencia } from '../hooks';
@@ -63,7 +63,6 @@ export function ResumenAsistencia({ filtros, alCambiar }: ResumenAsistenciaProps
     ...(filtros.ministerioId && { ministerioId: filtros.ministerioId }),
   };
   const consulta = useResumenAsistencia(query);
-  const puedeExportar = usePermiso('reportes:generales', 'reportes:generales-propio');
   const verTodos = usePermiso('asistencia:leer');
   const coordinados = useMinisteriosCoordinados();
   const { data: ministerios } = useMinisterios();
@@ -75,10 +74,6 @@ export function ResumenAsistencia({ filtros, alCambiar }: ResumenAsistenciaProps
   ];
   const datos = (consulta.data ?? []).map((f) => ({ ...f, etiqueta: etiquetaPeriodo(f.periodo) }));
   const sinDatos = datos.every((f) => f.eventos === 0);
-  const exportar = new URLSearchParams({
-    ...(filtros.desde && { desde: filtros.desde }),
-    ...(filtros.hasta && { hasta: filtros.hasta }),
-  });
 
   return (
     <>
@@ -107,13 +102,16 @@ export function ResumenAsistencia({ filtros, alCambiar }: ResumenAsistenciaProps
           valor={filtros.ministerioId || TODOS}
           alCambiar={(v) => alCambiar({ ministerioId: v === TODOS ? '' : v })}
         />
-        {puedeExportar && (
-          <Button variante="contorno" asChild className="sm:ml-auto">
-            <Link to={`/reportes?tipo=asistencia&${exportar.toString()}`}>
-              <FileDown aria-hidden /> Exportar
-            </Link>
-          </Button>
-        )}
+        {/* Reporte de asistencia de F4 (PDF / Excel) con los mismos filtros; se oculta sin permiso */}
+        <BotonExportar
+          tipo="asistencia"
+          className="sm:ml-auto"
+          filtros={{
+            periodo,
+            ...(filtros.desde && { desde: filtros.desde }),
+            ...(filtros.hasta && { hasta: filtros.hasta }),
+          }}
+        />
       </FiltrosBar>
 
       <Card>

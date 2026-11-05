@@ -70,10 +70,20 @@ export const anunciosHandlers = [
     const url = new URL(request.url);
     const vigentes = url.searchParams.get('vigentes');
     const prioridad = url.searchParams.get('prioridad');
+    const estado = url.searchParams.get('estado');
+    const ya = Date.now();
+    const enEstado = (a: AnuncioMock) =>
+      !estado ||
+      (estado === 'vigentes'
+        ? esVigente(a, ya)
+        : estado === 'programados'
+          ? Date.parse(a.fechaPublicacion) > ya
+          : Date.parse(a.fechaPublicacion) <= ya && !esVigente(a, ya));
     const q = url.searchParams.get('q')?.toLowerCase();
     const lista = db.anuncios
       .filter((a) => vigentes === null || String(esVigente(a)) === vigentes)
       .filter((a) => !prioridad || a.prioridad === prioridad)
+      .filter(enEstado)
       .filter((a) => !q || a.titulo.toLowerCase().includes(q))
       .sort(ordenar)
       .map(formatear);

@@ -17,7 +17,7 @@
 - **RF:** RF-07.4 · **Fase:** 3 · **Tamaño:** S · **Depende de:** F3-10
 - Exportar `TarjetaAnuncio` en variante compacta y `useAnunciosVigentes({ soloImportantes })` para F4.
 - **Criterios de aceptación**
-  - [ ] F4 lo integra sin modificarlo. *(pendiente: `TarjetaAnuncio compacta` y `useAnunciosVigentes` listos; falta la integración de F4)*
+  - [x] F4 lo integra sin modificarlo. *(integrado en `DashboardPage.tsx` de F4, sin cambios en `features/anuncios`; confirmado en la auditoría 1, A1-F3-03)*
 
 ### F3-13 · Cartelera pública
 - **RF:** RF-07.4 · **Fase:** 3 · **Tamaño:** M · **Depende de:** B3-15

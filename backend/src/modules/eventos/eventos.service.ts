@@ -6,11 +6,13 @@
  * - `verificarGestionaEvento(solicitante, ministerioId, ...)` → regla "-propio" del COORDINADOR.
  */
 import { type Permiso, type RolUsuario, tienePermiso } from '../../config/permisos';
-import type { Prisma } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { AppError, type DetalleError } from '../../lib/appError';
 import { crearMeta, ordenar, paginar } from '../../lib/paginacion';
 import { prisma } from '../../lib/prisma';
 import { esCoordinadorDe } from '../../middlewares/auth';
+import * as miembrosService from '../miembros/miembros.service';
+import * as ministeriosService from '../ministerios/ministerios.service';
 import { esFechaSola, finDiaEnZona, inicioDiaEnZona, zonaIglesia } from './eventos.fechas';
 import {
   type CrearEvento,
@@ -85,11 +87,13 @@ export async function verificarGestionaEvento(
 /** El ministerio debe existir y estar activo → si no, 422. */
 async function verificarMinisterio(ministerioId: string | null | undefined) {
   if (!ministerioId) return;
-  const ministerio = await prisma.ministerio.findUnique({
-    where: { id: ministerioId },
-    select: { activo: true },
+  // Datos de B2 por su service (AGENTS.md §3); su 404 aquí es una regla de negocio (422)
+  const ministerio = await ministeriosService.obtener(ministerioId).catch((error: unknown) => {
+    if (error instanceof AppError && error.code === 'NOT_FOUND') {
+      throw AppError.reglaNegocio('El ministerio no existe.');
+    }
+    throw error;
   });
-  if (!ministerio) throw AppError.reglaNegocio('El ministerio no existe.');
   if (!ministerio.activo) {
     throw AppError.reglaNegocio('No se pueden programar eventos de un ministerio inactivo.');
   }
@@ -99,7 +103,21 @@ async function verificarMinisterio(ministerioId: string | null | undefined) {
  * B3-06: los eventos PROGRAMADO cuya fecha (fin, o inicio si no tiene fin) ya pasó se marcan
  * REALIZADO. Se ejecuta al consultar (sin tareas programadas ni dependencias nuevas).
  */
+const INTERVALO_MARCA_MS = 60_000;
+let ultimaMarca = 0;
+
+/** Pruebas: permite volver a marcar sin esperar el intervalo. */
+export function reiniciarMarcaRealizados() {
+  ultimaMarca = 0;
+}
+
+/**
+ * A lo más una vez por minuto por proceso (auditoría A1-B3-03): las lecturas no escriben en cada
+ * petición. Un evento puede tardar hasta un minuto en verse REALIZADO; `proximos()` ya filtra por fecha.
+ */
 export async function marcarRealizados(ahora = new Date()) {
+  if (ahora.getTime() - ultimaMarca < INTERVALO_MARCA_MS) return 0;
+  ultimaMarca = ahora.getTime();
   const { count } = await prisma.evento.updateMany({
     where: {
       estado: 'PROGRAMADO',
@@ -156,6 +174,14 @@ async function aInstantes(desde?: string, hasta?: string) {
   };
 }
 
+/** Ids de eventos cuyo título coincide con `q` sin acentos ni mayúsculas ("reunion" → "Reunión"). */
+async function idsPorTitulo(q: string) {
+  const condicion = miembrosService.condicionSinAcentos(Prisma.sql`titulo`, q);
+  if (!condicion) return [];
+  const filas = await prisma.$queryRaw<{ id: string }[]>`SELECT id FROM eventos WHERE ${condicion}`;
+  return filas.map((f) => f.id);
+}
+
 export async function listar(query: QueryEventos) {
   await marcarRealizados();
   const rango = await aInstantes(query.desde, query.hasta);
@@ -165,7 +191,7 @@ export async function listar(query: QueryEventos) {
     ...(query.categoria && { categoria: query.categoria }),
     ...(query.estado && { estado: query.estado }),
     ...(query.ministerioId && { ministerioId: query.ministerioId }),
-    ...(query.q && { titulo: { contains: query.q, mode: 'insensitive' } }),
+    ...(query.q && { id: { in: await idsPorTitulo(query.q) } }),
   };
 
   // Calendario: con desde y hasta se devuelve todo el rango sin paginar (máx. 500)
@@ -186,7 +212,8 @@ export async function listar(query: QueryEventos) {
   const orderBy = ordenar(query.orden, ['fechaInicio', 'titulo', 'createdAt'], {
     fechaInicio: 'desc',
   });
-  const [filas, total] = await prisma.$transaction([
+  // Lecturas en paralelo (A1-B1-01): $transaction([...]) usa una sola conexión y pg avisa
+  const [filas, total] = await Promise.all([
     prisma.evento.findMany({ where, orderBy, skip, take, select: SELECT_EVENTO }),
     prisma.evento.count({ where }),
   ]);
@@ -305,7 +332,12 @@ export async function editar(id: string, datos: EditarEvento, solicitante: Solic
       { campo: 'fechaFin', mensaje },
     ]);
   }
-  await prisma.evento.update({ where: { id }, data: datos });
+  // Si un evento REALIZADO se reprograma a una fecha futura, vuelve a PROGRAMADO (y a próximos/cartelera)
+  const reprogramado = actual.estado === 'REALIZADO' && (fin ?? inicio) > new Date();
+  await prisma.evento.update({
+    where: { id },
+    data: { ...datos, ...(reprogramado && { estado: 'PROGRAMADO' }) },
+  });
   return obtener(id);
 }
 
@@ -340,19 +372,23 @@ export async function asignarResponsables(
     'eventos:editar-propio',
   );
   noCancelado(actual.estado);
-  const miembros = await prisma.miembro.findMany({
-    where: { id: { in: miembroIds } },
-    select: { id: true, nombre: true, apellidos: true, activo: true },
-  });
-  const porId = new Map(miembros.map((m) => [m.id, m]));
-  const invalidos: DetalleError[] = miembroIds.flatMap((miembroId) => {
-    const m = porId.get(miembroId);
-    if (!m) return [{ campo: 'miembroIds', mensaje: `El miembro ${miembroId} no existe.` }];
-    if (!m.activo) {
-      return [{ campo: 'miembroIds', mensaje: `${m.nombre} ${m.apellidos} está inactivo.` }];
-    }
-    return [];
-  });
+  // Datos de B2 por sus services (AGENTS.md §3). Solo se consultan uno a uno los no activos (máx. 10)
+  const activos = new Set(
+    (await miembrosService.obtenerActivos({ ids: miembroIds })).map((m) => m.id),
+  );
+  const invalidos: DetalleError[] = [];
+  for (const miembroId of miembroIds.filter((m) => !activos.has(m))) {
+    const m = await miembrosService.obtener(miembroId).catch((error: unknown) => {
+      if (error instanceof AppError && error.code === 'NOT_FOUND') return null;
+      throw error;
+    });
+    invalidos.push({
+      campo: 'miembroIds',
+      mensaje: m
+        ? `${m.nombre} ${m.apellidos} está inactivo.`
+        : `El miembro ${miembroId} no existe.`,
+    });
+  }
   if (invalidos.length > 0) {
     throw new AppError(
       'BUSINESS_RULE',
