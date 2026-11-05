@@ -245,9 +245,10 @@ export async function listar(query: QueryMiembros) {
 /**
  * Detalle con ministerios. `resumenAsistencia` (% de los últimos 3 meses y último evento asistido)
  * se omite si el rol no tiene `asistencia:leer`: el TESORERO no ve asistencia y el resumen abarca
- * todos los eventos, no solo los ministerios del COORDINADOR.
+ * todos los eventos, no solo los ministerios del COORDINADOR. Sin `rol` (llamadas internas de
+ * otros módulos) también se omite.
  */
-export async function obtener(id: string, rol: RolUsuario) {
+export async function obtener(id: string, rol?: RolUsuario) {
   const miembro = await prisma.miembro.findUnique({
     where: { id },
     select: {
@@ -268,9 +269,10 @@ export async function obtener(id: string, rol: RolUsuario) {
   return {
     ...formatear(datos),
     ministerios: ministerios.map(({ ministerio, ...vinculo }) => ({ ...ministerio, ...vinculo })),
-    ...(tienePermiso(rol, 'asistencia:leer') && {
-      resumenAsistencia: await asistenciaService.porcentajeMiembro(id, MESES_RESUMEN),
-    }),
+    ...(rol &&
+      tienePermiso(rol, 'asistencia:leer') && {
+        resumenAsistencia: await asistenciaService.porcentajeMiembro(id, MESES_RESUMEN),
+      }),
   };
 }
 

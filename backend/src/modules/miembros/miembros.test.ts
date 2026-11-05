@@ -274,6 +274,13 @@ describe('resumen de asistencia en GET /miembros/:id (B2-04)', () => {
     }
   });
 
+  it('una llamada interna sin rol devuelve el detalle sin el resumen', async () => {
+    const miembro = await miembroConAsistencia();
+    const detalle = await miembrosService.obtener(miembro.id);
+    expect(detalle.id).toBe(miembro.id);
+    expect(detalle).not.toHaveProperty('resumenAsistencia');
+  });
+
   it('sin registros el porcentaje es null', async () => {
     const miembro = await crearMiembro();
     const res = await api().get(`/miembros/${miembro.id}`);
