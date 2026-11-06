@@ -80,7 +80,7 @@ Auditorías: `Auditorias/Auditoria_<n>/README.md` (índice) → `<Integrante>/{b
 
 ## Estado actual
 - **B1 y F1 completos** (rama `feat/B1-F1-base`, PR [Surer46/IglesyApp#1](https://github.com/Surer46/IglesyApp/pull/1), fusionado en `develop` y `main`). Backend: 152 pruebas; frontend: 85. Probado de punta a punta: login real, sesión al recargar, invitación por Mailpit, logo servido desde el backend, Swagger.
-- Criterios de B1 aún abiertos: revisión del schema por B3/B4 (B2 la hizo: sus modelos funcionan sin cambios), `prisma studio` sin verificar.
+- Criterios de B1: todos cerrados (revisión del schema, `prisma studio` y CI con error de lint verificados el 2026-11-04).
 - **Ya desbloqueado para el equipo:** `autenticar`, `autorizar`, `autorizarAlguno`, `esCoordinadorDe` (`middlewares/auth.ts`), `validar`, `AppError`, paginación, plantilla `modules/_plantilla/`, `loginComo(rol)` para pruebas, componentes de `components/comunes` y MSW. Guía: `backend/README.md`.
 - **B2 y F2 implementados** (PR #3, #5 y #8): CRUD de miembros y ministerios, coordinadores, integrantes, seed y `SelectorMiembros`, conectados con asistencia (F3), actividades (F3), aportaciones y exportación (F4). Auditoría 1 atendida (A1-B2-01, 02 y A1-F2-01 … 04).
 - **B3 y F3 implementados** (rama `feat/B3-F3-eventos-asistencia-anuncios`, sobre `develop`, sin push): eventos, calendario, responsables, cancelación, pase de lista, historial, resumen semanal/mensual, anuncios y cartelera pública (`/cartelera`). Verificado: backend 282 pruebas y frontend 137, lint, typecheck y formato en verde; pantallas revisadas a 360 px y escritorio contra el backend real. Abiertos: confirmación de B4 (B3-11) y F4 (F3-12), Lighthouse de la cartelera.
