@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw';
+import { tienePermiso } from '@/lib/permisos';
 import type { CambiarEstadoMiembro, CrearMiembro, Miembro } from '@/types/miembros';
 import { db } from '../db';
 import { ahora, autenticar, errorApi, paginarMock, ruta } from '../utils';
@@ -27,6 +28,34 @@ function ministeriosActivosDe(miembroId: string) {
 }
 
 const noExiste = () => errorApi(404, 'NOT_FOUND', 'El miembro no existe.');
+
+const MESES_RESUMEN = 3;
+
+/** Como asistenciaService.porcentajeMiembro: eventos no cancelados de los últimos meses. */
+function resumenAsistencia(miembroId: string) {
+  const desde = new Date();
+  desde.setUTCMonth(desde.getUTCMonth() - MESES_RESUMEN);
+  const registros = db.asistencias
+    .filter((a) => a.miembroId === miembroId)
+    .map((a) => ({ a, e: db.eventos.find((x) => x.id === a.eventoId)! }));
+  const enPeriodo = registros.filter(
+    ({ e }) => e.estado !== 'CANCELADO' && Date.parse(e.fechaInicio) >= desde.getTime(),
+  );
+  const presentes = enPeriodo.filter(({ a }) => a.presente).length;
+  const ultima = registros
+    .filter(({ a }) => a.presente)
+    .sort((x, y) => y.e.fechaInicio.localeCompare(x.e.fechaInicio))[0]?.e;
+  return {
+    meses: MESES_RESUMEN,
+    presentes,
+    total: enPeriodo.length,
+    porcentaje:
+      enPeriodo.length > 0 ? Math.round((presentes / enPeriodo.length) * 1000) / 10 : null,
+    ultimaAsistencia: ultima
+      ? { id: ultima.id, titulo: ultima.titulo, fechaInicio: ultima.fechaInicio }
+      : null,
+  };
+}
 
 function limpiar<T extends Partial<CrearMiembro>>(cuerpo: T): T {
   const resultado = { ...cuerpo };
@@ -84,7 +113,15 @@ export const miembrosHandlers = [
         };
       })
       .sort((a, b) => Number(b.activo) - Number(a.activo));
-    return HttpResponse.json({ data: { ...miembro, ministerios } });
+    return HttpResponse.json({
+      data: {
+        ...miembro,
+        ministerios,
+        ...(tienePermiso(usuario.rol, 'asistencia:leer') && {
+          resumenAsistencia: resumenAsistencia(miembro.id),
+        }),
+      },
+    });
   }),
 
   http.post(ruta('/miembros'), async ({ request }) => {

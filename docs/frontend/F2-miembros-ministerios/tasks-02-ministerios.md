@@ -28,4 +28,4 @@
 - **RF:** RF-05.4 · **Fase:** 3 · **Tamaño:** S · **Depende de:** F2-10, F3 (`useEventos`)
 - Pestaña *Actividades*: próximos eventos y eventos pasados del ministerio (`GET /eventos?ministerioId=`), con enlace al detalle del evento y botón "Nuevo evento" precargando `ministerioId`.
 - **Criterios de aceptación**
-  - [ ] Reutiliza componentes de lista de eventos de F3 (sin duplicar).
+  - [x] Reutiliza componentes de lista de eventos de F3 (sin duplicar).

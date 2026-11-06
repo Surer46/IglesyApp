@@ -32,7 +32,7 @@
 - **Fase:** 2 · **Tamaño:** S · **Depende de:** B2-10
 - Exportar `miembrosDe(ministerioId)`, `ministeriosCoordinadosPor(usuarioId)`, `contarActivos()`, `participacionPorMinisterio()` (para dashboard y reporte RF-09.3, junto con datos de asistencia de B3).
 - **Criterios de aceptación**
-  - [ ] Pruebas unitarias; B3 y B4 confirman uso. *(B4 confirmó: usa `contarActivos`, `participacionPorMinisterio`, `miembrosDe` y `ministeriosCoordinadosPor`)*
+  - [x] Pruebas unitarias; B3 y B4 confirman uso. *(B4 confirmó: usa `contarActivos`, `participacionPorMinisterio`, `miembrosDe` y `ministeriosCoordinadosPor`. B3 confirmó en el PR #15)*
 
 ### B2-12 · Seed de datos realistas
 - **Fase:** 2 · **Tamaño:** M · **Depende de:** B1-04, B2-09
