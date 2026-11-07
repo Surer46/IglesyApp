@@ -42,9 +42,21 @@ export interface MinisterioDeMiembro extends MinisterioResumen {
   activo: boolean;
 }
 
+/** Asistencia de los últimos meses (solo llega con el permiso `asistencia:leer`) */
+export interface ResumenAsistenciaMiembro {
+  meses: number;
+  presentes: number;
+  total: number;
+  /** null = sin registros en el periodo */
+  porcentaje: number | null;
+  ultimaAsistencia: { id: string; titulo: string; fechaInicio: string } | null;
+}
+
 /** GET /miembros/:id */
 export interface MiembroDetalle extends Miembro {
   ministerios: MinisterioDeMiembro[];
+  /** Se omite si el rol no tiene `asistencia:leer` */
+  resumenAsistencia?: ResumenAsistenciaMiembro;
 }
 
 export interface QueryMiembros extends QueryLista {

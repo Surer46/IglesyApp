@@ -1,13 +1,4 @@
-import {
-  ArrowLeft,
-  CalendarDays,
-  Pencil,
-  Power,
-  UserCog,
-  UserMinus,
-  UserPlus,
-  Users,
-} from 'lucide-react';
+import { ArrowLeft, Pencil, Power, UserCog, UserMinus, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { BadgeEstado } from '@/components/comunes/BadgeEstado';
@@ -23,9 +14,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/controles';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BotonExportar } from '@/features/reportes/components/BotonExportar';
+import { usePermiso } from '@/hooks/usePermiso';
 import { formatearFecha } from '@/lib/formato';
 import { notificar } from '@/lib/notificar';
 import type { Integrante, Ministerio } from '@/types/ministerios';
+import { ActividadesMinisterio } from '../components/ActividadesMinisterio';
 import { AgregarIntegrantesDialog } from '../components/AgregarIntegrantesDialog';
 import { CoordinadoresDialog } from '../components/CoordinadoresDialog';
 import { MinisterioFormDialog } from '../components/MinisterioFormDialog';
@@ -180,6 +174,8 @@ export function MinisterioDetallePage() {
   const { id } = useParams();
   const consulta = useMinisterio(id);
   const cambiarEstado = useCambiarEstadoMinisterio();
+  const reportesCompletos = usePermiso('reportes:generales');
+  const coordinaOGestiona = usePuedeGestionarIntegrantes();
   const [editarAbierto, setEditarAbierto] = useState(false);
   const [coordinadoresAbierto, setCoordinadoresAbierto] = useState(false);
   const [estadoAbierto, setEstadoAbierto] = useState(false);
@@ -213,6 +209,10 @@ export function MinisterioDetallePage() {
                 <ArrowLeft aria-hidden /> Ministerios
               </Link>
             </Button>
+            {/* COORDINADOR: el backend solo le permite el reporte de sus ministerios */}
+            {(reportesCompletos || coordinaOGestiona(ministerio)) && (
+              <BotonExportar tipo="ministerios" filtros={{ ministerioId: ministerio.id }} />
+            )}
             <Puede permiso="ministerios:editar">
               <Button variante="contorno" onClick={() => setEditarAbierto(true)}>
                 <Pencil aria-hidden /> Editar
@@ -262,15 +262,8 @@ export function MinisterioDetallePage() {
         <TabsContent value="integrantes">
           <Integrantes ministerio={ministerio} />
         </TabsContent>
-        {/* F2-11 (fase 3): se conecta con la lista de eventos de F3 (useEventos({ ministerioId })) */}
         <TabsContent value="actividades">
-          <Card>
-            <EmptyState
-              icono={CalendarDays}
-              titulo="Actividades programadas"
-              descripcion="Aquí se mostrarán los próximos eventos y los pasados de este ministerio cuando el módulo de eventos esté disponible."
-            />
-          </Card>
+          <ActividadesMinisterio ministerio={ministerio} />
         </TabsContent>
       </Tabs>
 

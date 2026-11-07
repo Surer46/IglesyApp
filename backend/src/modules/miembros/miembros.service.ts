@@ -8,10 +8,12 @@
  * - `idsQueCoinciden(q, { ministerioId? })` → búsqueda sin acentos ni mayúsculas (la reutiliza ministerios).
  * - `hoyIglesia()` → fecha de hoy en la zona horaria configurada de la iglesia.
  */
+import { type RolUsuario, tienePermiso } from '../../config/permisos';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError, type DetalleError } from '../../lib/appError';
 import { crearMeta, ordenar, paginar } from '../../lib/paginacion';
 import { prisma } from '../../lib/prisma';
+import * as asistenciaService from '../asistencia/asistencia.service';
 import * as configuracionService from '../configuracion/configuracion.service';
 import type { CrearMiembro, EditarMiembro, EstadoMiembro, QueryMiembros } from './miembros.schemas';
 
@@ -19,6 +21,7 @@ type Cliente = Prisma.TransactionClient | typeof prisma;
 type FiltroEstado = QueryMiembros['estado'];
 
 const NO_EXISTE = 'El miembro no existe.';
+const MESES_RESUMEN = 3;
 
 const SELECT_MIEMBRO = {
   id: true,
@@ -239,7 +242,13 @@ export async function listar(query: QueryMiembros) {
   return { datos, meta: crearMeta(Number(conteo[0]?.total ?? 0), page, limit) };
 }
 
-export async function obtener(id: string) {
+/**
+ * Detalle con ministerios. `resumenAsistencia` (% de los últimos 3 meses y último evento asistido)
+ * se omite si el rol no tiene `asistencia:leer`: el TESORERO no ve asistencia y el resumen abarca
+ * todos los eventos, no solo los ministerios del COORDINADOR. Sin `rol` (llamadas internas de
+ * otros módulos) también se omite.
+ */
+export async function obtener(id: string, rol?: RolUsuario) {
   const miembro = await prisma.miembro.findUnique({
     where: { id },
     select: {
@@ -256,11 +265,14 @@ export async function obtener(id: string) {
     },
   });
   if (!miembro) throw AppError.noEncontrado(NO_EXISTE);
-  // El resumen de asistencia (último evento, % en 3 meses) se agregará con asistenciaService (B3)
   const { ministerios, ...datos } = miembro;
   return {
     ...formatear(datos),
     ministerios: ministerios.map(({ ministerio, ...vinculo }) => ({ ...ministerio, ...vinculo })),
+    ...(rol &&
+      tienePermiso(rol, 'asistencia:leer') && {
+        resumenAsistencia: await asistenciaService.porcentajeMiembro(id, MESES_RESUMEN),
+      }),
   };
 }
 

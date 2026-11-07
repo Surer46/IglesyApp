@@ -12,6 +12,7 @@ import { crearMeta, ordenar, paginar } from '../../lib/paginacion';
 import { prisma } from '../../lib/prisma';
 import { esCoordinadorDe } from '../../middlewares/auth';
 import { condicionSinAcentos, idsQueCoinciden } from '../miembros/miembros.service';
+import * as usuariosService from '../usuarios/usuarios.service';
 import type {
   CrearMinisterio,
   EditarMinisterio,
@@ -107,7 +108,7 @@ export async function listar(query: QueryMinisterios) {
     ...(query.activo !== undefined && { activo: query.activo }),
   };
   const orderBy = ordenar(query.orden, ['nombre', 'createdAt'], { nombre: 'asc' });
-  const [filas, total] = await prisma.$transaction([
+  const [filas, total] = await Promise.all([
     prisma.ministerio.findMany({ where, orderBy, skip, take, select: SELECT_MINISTERIO }),
     prisma.ministerio.count({ where }),
   ]);
@@ -148,16 +149,20 @@ export async function cambiarEstado(id: string, activo: boolean) {
 
 // ───────── Coordinadores (B2-08) ─────────
 
+/** Usuario por id o null si no existe: esos datos son de B1 y se piden a su service. */
+function usuarioONulo(id: string) {
+  return usuariosService.obtener(id).catch((error: unknown) => {
+    if (error instanceof AppError && error.code === 'NOT_FOUND') return null;
+    throw error;
+  });
+}
+
 /** Reemplaza la lista. Solo usuarios activos con rol COORDINADOR o PASTOR (si no, 422 indicando cuál). */
 export async function asignarCoordinadores(id: string, usuarioIds: string[]) {
   await obtenerOFallar(id);
-  const usuarios = await prisma.usuario.findMany({
-    where: { id: { in: usuarioIds } },
-    select: { id: true, nombre: true, rol: true, activo: true },
-  });
-  const porId = new Map(usuarios.map((u) => [u.id, u]));
-  const invalidos: DetalleError[] = usuarioIds.flatMap((usuarioId) => {
-    const u = porId.get(usuarioId);
+  const usuarios = await Promise.all(usuarioIds.map(usuarioONulo));
+  const invalidos: DetalleError[] = usuarioIds.flatMap((usuarioId, i) => {
+    const u = usuarios[i];
     if (!u) return [{ campo: 'usuarioIds', mensaje: `El usuario ${usuarioId} no existe.` }];
     if (!u.activo) return [{ campo: 'usuarioIds', mensaje: `${u.nombre} está desactivado.` }];
     if (!ROLES_COORDINADOR.includes(u.rol)) {
@@ -175,12 +180,12 @@ export async function asignarCoordinadores(id: string, usuarioIds: string[]) {
       invalidos,
     );
   }
-  await prisma.$transaction([
-    prisma.ministerioCoordinador.deleteMany({ where: { ministerioId: id } }),
-    prisma.ministerioCoordinador.createMany({
+  await prisma.$transaction(async (tx) => {
+    await tx.ministerioCoordinador.deleteMany({ where: { ministerioId: id } });
+    await tx.ministerioCoordinador.createMany({
       data: usuarioIds.map((usuarioId) => ({ ministerioId: id, usuarioId })),
-    }),
-  ]);
+    });
+  });
   return obtener(id);
 }
 
@@ -253,7 +258,7 @@ export async function listarIntegrantes(id: string, query: QueryIntegrantes) {
     // La búsqueda se limita a los miembros de este ministerio (no a toda la congregación)
     ...(query.q && { miembroId: { in: await idsQueCoinciden(query.q, { ministerioId: id }) } }),
   };
-  const [filas, total] = await prisma.$transaction([
+  const [filas, total] = await Promise.all([
     prisma.miembroMinisterio.findMany({
       where,
       skip,
