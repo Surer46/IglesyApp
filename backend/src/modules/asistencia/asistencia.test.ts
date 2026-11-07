@@ -4,10 +4,12 @@ import { crearApp } from '../../app';
 import { prisma } from '../../lib/prisma';
 import { loginComo } from '../../test/helpers';
 import * as asistenciaService from './asistencia.service';
+import * as eventosService from '../eventos/eventos.service';
 
 let app: ReturnType<typeof crearApp>;
 let admin: Awaited<ReturnType<typeof loginComo>>;
 beforeEach(async () => {
+  eventosService.reiniciarMarcaRealizados();
   app = crearApp();
   admin = await loginComo('ADMIN');
 });
@@ -222,6 +224,7 @@ describe('PUT /eventos/:id/asistencia (B3-08)', () => {
     const otro = await crearMinisterio('Niños');
     const coord = await coordinadorDe(suyo.id);
     const ana = await crearMiembro('Ana');
+    await prisma.miembroMinisterio.create({ data: { miembroId: ana.id, ministerioId: suyo.id } });
     const registros = [{ miembroId: ana.id, presente: true }];
     const propio = await crearEvento({ ministerioId: suyo.id });
     const ajeno = await crearEvento({ ministerioId: otro.id });
@@ -240,6 +243,44 @@ describe('PUT /eventos/:id/asistencia (B3-08)', () => {
     expect(
       (await api().put(`/eventos/${propio.id}/asistencia`, { registros }, tesorero.auth)).status,
     ).toBe(403);
+  });
+
+  it('COORDINADOR no registra a miembros que no son de su ministerio → 422', async () => {
+    const suyo = await crearMinisterio('Música');
+    const coord = await coordinadorDe(suyo.id);
+    const integrante = await crearMiembro('Ana');
+    const ajeno = await crearMiembro('Luis', 'Ajeno');
+    await prisma.miembroMinisterio.create({
+      data: { miembroId: integrante.id, ministerioId: suyo.id },
+    });
+    const evento = await crearEvento({ ministerioId: suyo.id });
+    const url = `/eventos/${evento.id}/asistencia`;
+    const res = await api().put(
+      url,
+      {
+        registros: [
+          { miembroId: integrante.id, presente: true },
+          { miembroId: ajeno.id, presente: true },
+        ],
+      },
+      coord.auth,
+    );
+    expect(res.status).toBe(422);
+    expect(res.body.error.details[0].mensaje).toContain('Luis Ajeno no pertenece');
+    expect(await prisma.asistencia.count()).toBe(0);
+    // ADMIN sí puede registrar a un miembro de fuera (p. ej. un visitante de otro ministerio)
+    expect(
+      (await api().put(url, { registros: [{ miembroId: ajeno.id, presente: true }] })).status,
+    ).toBe(200);
+  });
+
+  it('acepta hasta 5 000 registros (RNF-02)', async () => {
+    const ana = await crearMiembro('Ana');
+    const evento = await crearEvento();
+    const demasiados = Array.from({ length: 5001 }, () => ({ miembroId: ana.id, presente: true }));
+    const res = await api().put(`/eventos/${evento.id}/asistencia`, { registros: demasiados });
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(res.body)).toContain('5000');
   });
 
   it('300 registros en menos de 1 s', async () => {
@@ -339,6 +380,20 @@ describe('GET /asistencias (B3-09)', () => {
     expect(resultado).toMatchObject({ presentes: 2, total: 3, porcentaje: 66.7 });
     expect(resultado.ultimaAsistencia?.titulo).toBe('Dos');
   });
+
+  it('la última asistencia ignora eventos cancelados', async () => {
+    const ana = await crearMiembro('Ana');
+    const valido = await crearEvento({ titulo: 'Válido', fechaInicio: enDias(-20) });
+    const cancelado = await crearEvento({
+      titulo: 'Cancelado',
+      fechaInicio: enDias(-2),
+      estado: 'CANCELADO',
+    });
+    await registrar(valido.id, ana.id, true);
+    await registrar(cancelado.id, ana.id, true);
+    const resultado = await asistenciaService.porcentajeMiembro(ana.id, 3);
+    expect(resultado.ultimaAsistencia?.titulo).toBe('Válido');
+  });
 });
 
 describe('GET /asistencias/resumen (B3-10)', () => {
@@ -428,6 +483,14 @@ describe('GET /asistencias/resumen (B3-10)', () => {
     expect(semanal.status).toBe(200);
     expect(semanal.body.data).toHaveLength(12);
     expect((await api().get('/asistencias/resumen?periodo=diario')).status).toBe(400);
+    // Con desde y sin hasta (hasta = hoy) también se aplica el tope de 2 años
+    const sinHasta = await api().get('/asistencias/resumen?periodo=semanal&desde=1900-01-01');
+    expect(sinHasta.status).toBe(400);
+    expect(sinHasta.body.error.details[0].campo).toBe('desde');
+    expect(
+      (await api().get('/asistencias/resumen?periodo=mensual&hasta=2020-01-01&desde=2021-01-01'))
+        .status,
+    ).toBe(400);
     expect(
       (await api().get('/asistencias/resumen?periodo=mensual&desde=2020-01-01&hasta=2026-01-01'))
         .status,

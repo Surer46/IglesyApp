@@ -1329,7 +1329,7 @@ paths:
                 registros:
                   type: array
                   minItems: 1
-                  maxItems: 2000
+                  maxItems: 5000
                   items:
                     type: object
                     required: [miembroId, presente]
@@ -1400,6 +1400,10 @@ paths:
         - { $ref: '#/components/parameters/Limit' }
         - { $ref: '#/components/parameters/Q' }
         - { name: vigentes, in: query, schema: { type: boolean } }
+        - name: estado
+          in: query
+          description: Pestañas del listado (paginadas por separado)
+          schema: { type: string, enum: [vigentes, programados, expirados] }
         - { name: prioridad, in: query, schema: { type: string, enum: [NORMAL, IMPORTANTE] } }
       responses:
         '200':

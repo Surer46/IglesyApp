@@ -1,5 +1,5 @@
 import { ArrowLeft, Ban, Check, CheckCheck, Loader2, Save, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useBlocker, useParams } from 'react-router';
 import { ConfirmDialog } from '@/components/comunes/ConfirmDialog';
 import { EmptyState, ErrorState, SkeletonTabla } from '@/components/comunes/Estados';
@@ -53,8 +53,12 @@ export function PaseListaPage() {
       </>
     );
   }
-  // key: al reabrir o tras guardar se parte de lo guardado en el servidor
-  return <PaseLista key={consulta.dataUpdatedAt} lista={consulta.data} />;
+  // key por evento: una recarga de la lista (red, foco) no reinicia lo marcado sin guardar
+  return <PaseLista key={consulta.data.evento.id} lista={consulta.data} />;
+}
+
+function marcasDe(lista: ListaAsistencia) {
+  return new Map<string, Marca>(lista.registros.map((r) => [r.miembro.id, r.presente]));
 }
 
 function PaseLista({ lista }: { lista: ListaAsistencia }) {
@@ -64,19 +68,33 @@ function PaseLista({ lista }: { lista: ListaAsistencia }) {
     'asistencia:crear',
     'asistencia:crear-propio',
   )(evento.ministerio?.id);
-  const inicial = useMemo(
-    () => new Map<string, Marca>(lista.registros.map((r) => [r.miembro.id, r.presente])),
-    [lista],
-  );
-  const [marcas, setMarcas] = useState(inicial);
+  // Lo guardado en el servidor y lo marcado en pantalla. Si la lista se recarga (reconexión,
+  // volver a la pestaña, después de guardar), solo se actualizan las filas que el usuario no tocó.
+  const [guardado, setGuardado] = useState(() => marcasDe(lista));
+  const [marcas, setMarcas] = useState(guardado);
+  const [listaPrevia, setListaPrevia] = useState(lista);
+  if (lista !== listaPrevia) {
+    const nuevo = marcasDe(lista);
+    setListaPrevia(lista);
+    setGuardado(nuevo);
+    setMarcas((actual) => {
+      const combinadas = new Map<string, Marca>();
+      for (const [id, valor] of nuevo) {
+        const tocada = actual.has(id) && actual.get(id) !== guardado.get(id);
+        combinadas.set(id, tocada ? actual.get(id)! : valor);
+      }
+      return combinadas;
+    });
+  }
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState<FiltroLista>('todos');
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const guardando = useRef(false);
 
   const cambios = lista.registros.some(
-    (r) => marcas.get(r.miembro.id) !== inicial.get(r.miembro.id),
+    (r) => marcas.get(r.miembro.id) !== guardado.get(r.miembro.id),
   );
+  const hayGuardadas = [...guardado.values()].some((v) => v !== null);
   const valores = [...marcas.values()];
   const conteo = {
     presentes: valores.filter((v) => v === true).length,
@@ -126,9 +144,13 @@ function PaseLista({ lista }: { lista: ListaAsistencia }) {
   });
 
   function marcar(miembroId: string, valor: boolean) {
-    setMarcas((actual) =>
-      new Map(actual).set(miembroId, actual.get(miembroId) === valor ? null : valor),
-    );
+    setMarcas((actual) => {
+      // Una marca ya guardada se puede cambiar (presente ↔ ausente) pero no quitar:
+      // el contrato solo registra presente/ausente, no borra asistencias
+      const quitar = actual.get(miembroId) === valor && (guardado.get(miembroId) ?? null) === null;
+      if (actual.get(miembroId) === valor && !quitar) return actual;
+      return new Map(actual).set(miembroId, quitar ? null : valor);
+    });
   }
 
   function marcarTodos(valor: boolean, soloSinMarcar: boolean) {
@@ -203,6 +225,12 @@ function PaseLista({ lista }: { lista: ListaAsistencia }) {
         </div>
       )}
 
+      {puedeRegistrar && hayGuardadas && (
+        <p className="mb-3 text-sm text-texto-suave">
+          Las marcas ya guardadas se pueden cambiar entre presente y ausente, pero no quitar.
+        </p>
+      )}
+
       {errorServidor && (
         <Alert variante="peligro" className="mb-3">
           {errorServidor}
@@ -218,7 +246,11 @@ function PaseLista({ lista }: { lista: ListaAsistencia }) {
               const marca = marcas.get(miembro.id) ?? null;
               const nombre = `${miembro.nombre} ${miembro.apellidos}`;
               return (
-                <li key={miembro.id} className="flex items-center gap-2 px-3 py-2 sm:px-4">
+                // content-visibility: el navegador no dibuja las filas fuera de pantalla (listas largas)
+                <li
+                  key={miembro.id}
+                  className="flex items-center gap-2 px-3 py-2 [contain-intrinsic-size:auto_3.75rem] [content-visibility:auto] sm:px-4"
+                >
                   <span className="min-w-0 flex-1 truncate font-medium">{nombre}</span>
                   <div
                     role="group"
